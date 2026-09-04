@@ -5,21 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#090d16" />
-  <title>AnkiLite PWA</title>
+  <meta name="theme-color" content="#030712" />
+  <title>AnkiFlow</title>
 
-  <!-- Tailwind CSS -->
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
           colors: {
-            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
-            cardbg: '#141c2e',
-            subtle: '#1f2b45',
-            surface: '#0f172a'
+            hyper: {
+              violet: '#8b5cf6',
+              cyan: '#06b6d4',
+              emerald: '#10b981',
+              pink: '#ec4899',
+              amber: '#f59e0b',
+            }
           }
         }
       }
@@ -35,54 +47,95 @@
 
   <style>
     body {
-      background-color: #090d16;
+      background-color: #030712;
       color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: "Plus Jakarta Sans", -apple-system, sans-serif;
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
       -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
     }
-    .card-content img {
-      max-width: 100%;
-      max-height: 48vh;
-      object-fit: contain;
-      border-radius: 0.75rem;
-      margin: 1rem auto;
-      display: block;
+
+    /* Ambient background glow */
+    .ambient-glow {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.18), transparent 70%),
+                  radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.08), transparent 60%);
+      pointer-events: none;
+      z-index: 0;
     }
-    .card-content audio {
-      margin: 1rem auto;
-      width: 100%;
-      max-width: 400px;
-      display: block;
+
+    /* Glassmorphic card styling */
+    .glass-card {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
     }
+
+    .glass-pill {
+      background: rgba(31, 41, 55, 0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Cloze deletions with neon vapor aesthetics */
     .cloze-bracket {
       color: #38bdf8;
-      font-weight: 700;
-      background-color: rgba(56, 189, 248, 0.15);
+      font-weight: 800;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px dashed rgba(56, 189, 248, 0.4);
       padding: 2px 8px;
-      border-radius: 6px;
+      border-radius: 8px;
     }
     .cloze-reveal {
-      color: #4ade80;
-      font-weight: 700;
-      background-color: rgba(74, 222, 128, 0.15);
+      color: #34d399;
+      font-weight: 800;
+      background: rgba(52, 211, 153, 0.15);
+      border: 1px solid rgba(52, 211, 153, 0.4);
       padding: 2px 8px;
-      border-radius: 6px;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(52, 211, 153, 0.2);
     }
+
+    .card-content img {
+      max-width: 100%;
+      max-height: 46vh;
+      object-fit: contain;
+      border-radius: 1rem;
+      margin: 1.25rem auto;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .card-content audio {
+      margin: 1.25rem auto;
+      width: 100%;
+      max-width: 380px;
+      filter: invert(0.85) hue-rotate(180deg);
+    }
+
     ::selection {
-      background: #facc15;
-      color: #000;
+      background: #ec4899;
+      color: #ffffff;
     }
+
     .safe-bottom-margin {
       margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
   </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950">
-  <div id="root" class="h-full w-full flex flex-col"></div>
+<body class="h-screen w-screen flex flex-col relative selection:bg-pink-500 selection:text-white">
+  <div class="ambient-glow"></div>
+  <div id="root" class="h-full w-full flex flex-col relative z-10"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
@@ -212,10 +265,11 @@
       });
     }
 
+    // --- Parser ---
     async function parseApkg(file) {
       const zip = await JSZip.loadAsync(file);
       let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
-      if (!dbFile) throw new Error("Invalid .apkg: database not found inside archive.");
+      if (!dbFile) throw new Error("Missing SQLite deck file in .apkg archive.");
 
       const dbBuffer = await dbFile.async("uint8array");
       const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
@@ -300,7 +354,7 @@
       processed = processed.replace(clozeRegex, (match, num, text, hint) => {
         const isCurrentCloze = parseInt(num) === (clozeOrd + 1);
         if (isFront) {
-          return isCurrentCloze ? `<span class="cloze-bracket">[${hint || "..."}]</span>` : text;
+          return isCurrentCloze ? `<span class="cloze-bracket">${hint || "..."}</span>` : text;
         } else {
           return isCurrentCloze ? `<span class="cloze-reveal">${text}</span>` : text;
         }
@@ -410,9 +464,9 @@
       return root.children;
     }
 
-    // --- Main App ---
+    // --- Main App Component ---
     function App() {
-      const [view, setView] = useState("deckList"); // 'deckList' | 'tagExplorer' | 'study' | 'manager'
+      const [view, setView] = useState("deckList");
       const [decks, setDecks] = useState([]);
       const [cards, setCards] = useState([]);
       const [selectedDeckNode, setSelectedDeckNode] = useState(null);
@@ -434,13 +488,13 @@
         const file = e.target.files[0];
         if (!file) return;
         setLoading(true);
-        setStatusMsg("Unzipping & Parsing SQLite Database...");
+        setStatusMsg("Unzipping & Crunching SQLite...");
         try {
           await parseApkg(file);
           await loadData();
           setStatusMsg("");
         } catch (err) {
-          alert("Error importing .apkg: " + err.message);
+          alert("Import failed: " + err.message);
           console.error(err);
         } finally {
           setLoading(false);
@@ -448,21 +502,25 @@
       };
 
       return (
-        <div className="flex flex-col h-full w-full bg-slate-950 text-slate-100 relative">
-          {/* Header */}
-          <header className="px-6 py-3.5 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 flex items-center justify-between flex-shrink-0 z-10">
+        <div className="flex flex-col h-full w-full relative">
+          {/* Top Bar */}
+          <header className="px-6 py-4 bg-gray-950/60 backdrop-blur-2xl border-b border-white/[0.06] flex items-center justify-between flex-shrink-0 z-20">
             <div className="flex items-center space-x-3">
-              <span className="text-2xl">⚡</span>
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-violet-600 via-pink-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                <span className="text-white text-base font-black">⚡</span>
+              </div>
               <div>
-                <h1 className="text-lg font-black tracking-tight text-indigo-400 leading-none">AnkiLite</h1>
-                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Spaced Repetition PWA</p>
+                <h1 className="text-lg font-black tracking-tighter bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                  AnkiFlow
+                </h1>
+                <p className="text-[10px] font-mono tracking-widest uppercase text-violet-400 font-semibold">Study OS • 2.0</p>
               </div>
             </div>
 
             {(view === "study" || view === "manager") && (
               <button 
                 onClick={() => { setView("deckList"); loadData(); }} 
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+                className="px-4 py-2 bg-white/[0.06] hover:bg-white/[0.1] active:scale-95 border border-white/[0.08] rounded-2xl text-xs font-bold transition flex items-center space-x-2 text-slate-200 shadow-sm"
               >
                 <span>←</span>
                 <span>Decks</span>
@@ -470,12 +528,12 @@
             )}
           </header>
 
-          {/* Main View Area */}
+          {/* Core Content */}
           <main className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-slate-300 font-semibold">{statusMsg}</p>
+                <div className="w-12 h-12 rounded-full border-4 border-violet-500/20 border-t-violet-500 animate-spin"></div>
+                <p className="text-slate-300 font-bold tracking-tight text-sm">{statusMsg}</p>
               </div>
             )}
 
@@ -494,7 +552,7 @@
                 }}
                 onUpload={handleFileUpload}
                 onDeleteDeck={async (node) => { 
-                  if (confirm(`Delete "${node.displayName}" and all its subdecks?`)) { 
+                  if (confirm(`Nuke "${node.displayName}" and all subdecks?`)) { 
                     await dbDeleteDeck(node.deckId, node.fullName, decks); 
                     loadData(); 
                   } 
@@ -545,233 +603,41 @@
             )}
           </main>
 
-          {/* Bottom Navigation Bar */}
+          {/* Floating Dock Bottom Navigation */}
           {(view === "deckList" || view === "tagExplorer") && (
-            <nav className="flex-shrink-0 bg-slate-900 border-t border-slate-800 px-6 py-2 flex justify-around items-center safe-bottom-margin z-10">
-              <button 
-                onClick={() => setView("deckList")}
-                className={`flex flex-col items-center space-y-1 py-1 px-4 rounded-xl transition ${
-                  view === "deckList" ? "text-indigo-400 font-bold" : "text-slate-500 hover:text-slate-300 font-medium"
-                }`}
-              >
-                <span className="text-lg">📁</span>
-                <span className="text-[11px]">Decks</span>
-              </button>
-
-              <button 
-                onClick={() => setView("tagExplorer")}
-                className={`flex flex-col items-center space-y-1 py-1 px-4 rounded-xl transition ${
-                  view === "tagExplorer" ? "text-indigo-400 font-bold" : "text-slate-500 hover:text-slate-300 font-medium"
-                }`}
-              >
-                <span className="text-lg">🏷️</span>
-                <span className="text-[11px]">All Tags</span>
-              </button>
-            </nav>
-          )}
-        </div>
-      );
-    }
-
-    // --- Global Tag Explorer View ---
-    function GlobalTagExplorerView({ allCards, allDecks, onStartStudy }) {
-      const [searchQuery, setSearchQuery] = useState("");
-      const [selectedTag, setSelectedTag] = useState(null);
-
-      const globalTagMap = useMemo(() => {
-        const map = new Map();
-        allCards.forEach(card => {
-          card.tags.forEach(tag => {
-            if (!map.has(tag)) {
-              map.set(tag, {
-                tag,
-                displayName: tag.split("::").pop(),
-                cards: [],
-                activeCount: 0,
-                suspendedCount: 0
-              });
-            }
-            const entry = map.get(tag);
-            entry.cards.push(card);
-            if (card.suspended) entry.suspendedCount++;
-            else entry.activeCount++;
-          });
-        });
-        return Array.from(map.values()).sort((a, b) => b.cards.length - a.cards.length);
-      }, [allCards]);
-
-      const filteredTags = useMemo(() => {
-        if (!searchQuery.trim()) return globalTagMap;
-        const q = searchQuery.toLowerCase();
-        return globalTagMap.filter(item => item.tag.toLowerCase().includes(q));
-      }, [globalTagMap, searchQuery]);
-
-      if (selectedTag) {
-        const tagData = globalTagMap.find(t => t.tag === selectedTag);
-        return (
-          <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 pb-20">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <button 
-                onClick={() => setSelectedTag(null)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
-              >
-                ← All Tags
-              </button>
-              <button 
-                onClick={() => onStartStudy([selectedTag])}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md"
-              >
-                Study #{tagData?.displayName} ({tagData?.activeCount} cards) →
-              </button>
-            </div>
-
-            <div>
-              <h2 className="text-base font-bold text-indigo-400 break-all">#{selectedTag}</h2>
-              <p className="text-xs text-slate-500 mt-0.5">{tagData?.cards.length} total cards across collection</p>
-            </div>
-
-            <div className="space-y-2">
-              {tagData?.cards.map((card, i) => (
-                <div key={card.id} className="p-3.5 bg-cardbg border border-slate-800 rounded-xl text-xs space-y-1.5">
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span className="font-mono text-[10px]">#{i + 1} • Card ID: {card.id}</span>
-                    <span className={card.suspended ? "text-amber-400 font-medium" : "text-emerald-400 font-medium"}>
-                      {card.suspended ? "Suspended" : "Active"}
-                    </span>
-                  </div>
-                  <div 
-                    className="text-slate-200 line-clamp-2"
-                    dangerouslySetInnerHTML={{ __html: card.fields[0] || "No front text" }} 
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 pb-24">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">All Collection Tags</h2>
-              <p className="text-xs text-slate-500">Search and drill down into any card by subject tag</p>
-            </div>
-            <input 
-              type="text"
-              placeholder="Search all tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-full sm:w-64"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {filteredTags.map(item => (
-              <div 
-                key={item.tag} 
-                onClick={() => setSelectedTag(item.tag)}
-                className="p-3.5 bg-cardbg hover:bg-slate-800/80 border border-slate-800 rounded-2xl cursor-pointer flex items-center justify-between transition shadow-sm"
-              >
-                <div className="min-w-0 pr-2">
-                  <p className="font-bold text-slate-200 text-sm truncate">#{item.displayName}</p>
-                  <p className="text-[11px] text-slate-500 truncate max-w-xs">{item.tag}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <span className="text-xs font-bold text-indigo-400 font-mono">{item.cards.length}</span>
-                  <p className="text-[10px] text-slate-500">cards</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // --- Recursive Tag Node Component ---
-    function TagTreeNode({ node, onBatchSuspend, selectedTags, onToggleSelect, depth = 0 }) {
-      const [isOpen, setIsOpen] = useState(depth === 0);
-      const childNodes = Object.values(node.children);
-      const hasChildren = childNodes.length > 0;
-      const isSelected = selectedTags.includes(node.fullTag);
-
-      return (
-        <div className="flex flex-col select-none">
-          <div 
-            className={`flex items-center justify-between p-3 my-0.5 rounded-xl border transition-all ${
-              isSelected ? 'bg-indigo-950/40 border-indigo-500/50' : 'bg-cardbg hover:bg-slate-800/80 border-slate-800'
-            }`}
-            style={{ marginLeft: `${depth * 20}px` }}
-          >
-            <div className="flex items-center space-x-2.5 flex-1 min-w-0 pr-2">
-              {hasChildren ? (
+            <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none safe-bottom-margin">
+              <nav className="pointer-events-auto bg-gray-950/80 backdrop-blur-2xl border border-white/10 p-1.5 rounded-full flex items-center shadow-2xl shadow-black/80 space-x-1">
                 <button 
-                  onClick={() => setIsOpen(!isOpen)}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-800 text-indigo-400 hover:bg-indigo-950 text-xs font-bold transition flex-shrink-0"
+                  onClick={() => setView("deckList")}
+                  className={`flex items-center space-x-2 py-2 px-5 rounded-full text-xs font-bold transition duration-200 active:scale-95 ${
+                    view === "deckList" 
+                      ? "bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-lg shadow-violet-500/25" 
+                      : "text-slate-400 hover:text-white"
+                  }`}
                 >
-                  {isOpen ? "▼" : "▶"}
+                  <span className="text-sm">🗂️</span>
+                  <span>Decks</span>
                 </button>
-              ) : (
-                <span className="w-6 h-6 flex items-center justify-center text-slate-600 text-xs flex-shrink-0">🏷️</span>
-              )}
 
-              <input 
-                type="checkbox" 
-                checked={isSelected} 
-                onChange={() => onToggleSelect(node.fullTag)}
-                className="rounded text-indigo-600 focus:ring-0 cursor-pointer flex-shrink-0" 
-              />
-
-              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onToggleSelect(node.fullTag)}>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-slate-200 text-sm truncate">{node.name}</span>
-                  {hasChildren && (
-                    <span className="text-[10px] text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded font-mono">
-                      +{childNodes.length}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  <span className="text-emerald-400 font-semibold">{node.active} active</span> • <span className="text-amber-400 font-semibold">{node.suspended} suspended</span> ({node.total} total cards)
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1.5 flex-shrink-0">
-              <button 
-                onClick={() => onBatchSuspend(node.fullTag, true)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-amber-950/60 hover:text-amber-300 text-slate-400 rounded-lg text-xs font-semibold border border-slate-700 transition"
-              >
-                Suspend
-              </button>
-              <button 
-                onClick={() => onBatchSuspend(node.fullTag, false)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-emerald-950/60 hover:text-emerald-300 text-slate-400 rounded-lg text-xs font-semibold border border-slate-700 transition"
-              >
-                Unsuspend
-              </button>
-            </div>
-          </div>
-
-          {hasChildren && isOpen && (
-            <div className="flex flex-col border-l-2 border-indigo-500/20 ml-4 pl-1">
-              {childNodes.map(child => (
-                <TagTreeNode 
-                  key={child.fullTag} 
-                  node={child} 
-                  onBatchSuspend={onBatchSuspend}
-                  selectedTags={selectedTags}
-                  onToggleSelect={onToggleSelect}
-                  depth={depth + 1}
-                />
-              ))}
+                <button 
+                  onClick={() => setView("tagExplorer")}
+                  className={`flex items-center space-x-2 py-2 px-5 rounded-full text-xs font-bold transition duration-200 active:scale-95 ${
+                    view === "tagExplorer" 
+                      ? "bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-lg shadow-violet-500/25" 
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span className="text-sm">🏷️</span>
+                  <span>All Tags</span>
+                </button>
+              </nav>
             </div>
           )}
         </div>
       );
     }
 
-    // --- Deck Tree Node Component ---
+    // --- Deck Tree Component ---
     function DeckTreeNode({ node, onSelectDeck, onOpenManager, onDeleteDeck, depth = 0 }) {
       const [isOpen, setIsOpen] = useState(true);
       const childNodes = Object.values(node.children);
@@ -780,39 +646,38 @@
       return (
         <div className="flex flex-col select-none">
           <div 
-            className="group flex items-center justify-between p-3.5 my-1 bg-cardbg hover:bg-slate-800/90 border border-slate-800/80 rounded-2xl shadow-sm transition-all duration-150"
-            style={{ marginLeft: `${depth * 24}px` }}
+            className="group flex items-center justify-between p-4 my-1.5 glass-card hover:border-violet-500/30 rounded-3xl transition-all duration-200 active:scale-[0.99]"
+            style={{ marginLeft: `${depth * 22}px` }}
           >
-            <div className="flex items-center space-x-3 flex-1 min-w-0 pr-3">
+            <div className="flex items-center space-x-3.5 flex-1 min-w-0 pr-3">
               {hasChildren ? (
                 <button 
                   onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/80 text-indigo-400 hover:bg-indigo-950 text-xs font-bold transition flex-shrink-0"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] text-violet-400 hover:bg-violet-500/20 text-xs font-bold transition flex-shrink-0"
                 >
                   {isOpen ? "▼" : "▶"}
                 </button>
               ) : (
-                <span className="w-7 h-7 flex items-center justify-center text-slate-600 text-sm flex-shrink-0">🗎</span>
+                <span className="w-8 h-8 flex items-center justify-center text-slate-500 text-sm flex-shrink-0">🗎</span>
               )}
 
               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectDeck(node)}>
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-slate-100 text-sm sm:text-base truncate group-hover:text-indigo-300 transition">
+                  <span className="font-bold text-slate-100 text-sm sm:text-base truncate group-hover:text-violet-300 transition">
                     {node.displayName}
                   </span>
                   {hasChildren && (
-                    <span className="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded-md font-mono">
-                      {childNodes.length} sub-decks
+                    <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-full">
+                      {childNodes.length}
                     </span>
                   )}
                 </div>
                 
-                <div className="flex items-center space-x-3 text-xs mt-1">
-                  <span className="text-emerald-400 font-semibold">{node.totalActive} due</span>
+                <div className="flex items-center space-x-2 text-[11px] font-mono mt-1">
+                  <span className="text-emerald-400 font-bold bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-500/20">{node.totalActive} due</span>
                   {node.totalSuspended > 0 && (
-                    <span className="text-amber-400 font-medium">{node.totalSuspended} suspended</span>
+                    <span className="text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-500/20">{node.totalSuspended} susp</span>
                   )}
-                  <span className="text-slate-500">({node.totalCards} total)</span>
                 </div>
               </div>
             </div>
@@ -820,20 +685,19 @@
             <div className="flex items-center space-x-2 flex-shrink-0">
               <button 
                 onClick={() => onSelectDeck(node)}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold rounded-xl text-xs shadow-md shadow-indigo-600/20 transition"
+                className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 active:scale-95 text-white font-extrabold rounded-xl text-xs shadow-md shadow-violet-600/30 transition"
               >
                 Study
               </button>
               <button 
                 onClick={() => onOpenManager(node)}
-                title="Manage Tags & Suspension"
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 active:scale-95 rounded-xl text-xs font-semibold border border-slate-700 transition"
+                className="px-3 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 active:scale-95 rounded-xl text-xs font-bold border border-white/[0.06] transition"
               >
-                🏷️ Tags
+                Tags
               </button>
               <button 
                 onClick={() => onDeleteDeck(node)}
-                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg text-xs transition"
+                className="p-2 text-slate-500 hover:text-pink-400 hover:bg-pink-950/20 rounded-xl text-xs transition"
               >
                 ✕
               </button>
@@ -841,7 +705,7 @@
           </div>
 
           {hasChildren && isOpen && (
-            <div className="flex flex-col border-l-2 border-indigo-500/20 ml-5 pl-1 my-0.5">
+            <div className="flex flex-col border-l-2 border-violet-500/20 ml-5 pl-1 my-0.5">
               {childNodes.map(child => (
                 <DeckTreeNode 
                   key={child.fullName} 
@@ -871,65 +735,70 @@
       }, [rootNodes, searchQuery]);
 
       return (
-        <div className="max-w-5xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
+        <div className="max-w-5xl mx-auto p-4 sm:p-8 space-y-6 pb-28">
+          {/* Hero Banner / Drop Zone */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 border-2 border-dashed border-slate-800 hover:border-indigo-500/60 bg-cardbg/40 backdrop-blur-sm rounded-3xl p-6 sm:p-8 text-center transition flex flex-col items-center justify-center cursor-pointer shadow-lg">
+            <div className="md:col-span-2 border-2 border-dashed border-violet-500/30 hover:border-violet-400 bg-gradient-to-br from-violet-950/20 via-slate-900/40 to-cyan-950/10 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 text-center transition-all duration-200 flex flex-col items-center justify-center cursor-pointer group shadow-xl">
               <input type="file" accept=".apkg" onChange={onUpload} id="apkg-upload" className="hidden" />
               <label htmlFor="apkg-upload" className="cursor-pointer space-y-2 w-full">
-                <span className="text-4xl block">📥</span>
-                <p className="text-base font-bold text-indigo-400">Import Anki Package (.apkg)</p>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Processes and stores decks, media, and multi-level subdecks entirely offline in your browser.
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center group-hover:scale-110 transition duration-200">
+                  <span className="text-2xl">⚡</span>
+                </div>
+                <p className="text-base font-extrabold text-white tracking-tight">Drop .apkg deck package here</p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Instant offline SQLite unbundling in WebAssembly. Zero servers, pure local speed.
                 </p>
               </label>
             </div>
 
-            <div className="bg-cardbg border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-lg">
+            <div className="glass-card rounded-3xl p-6 flex flex-col justify-between">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Collection Stats</h3>
-                <div className="mt-4 space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400">Total Cards</span>
-                    <span className="font-bold text-slate-100">{cards.length}</span>
+                <p className="text-[10px] font-mono tracking-widest uppercase text-slate-400 font-bold">Workspace Health</p>
+                <div className="mt-4 space-y-3 font-mono">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400">Total Loaded</span>
+                    <span className="font-extrabold text-white text-sm">{cards.length}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400">Active Queue</span>
-                    <span className="font-bold text-emerald-400">{cards.filter(c => !c.suspended).length}</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400">Ready To Review</span>
+                    <span className="font-extrabold text-emerald-400 text-sm">{cards.filter(c => !c.suspended).length}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-400">Suspended</span>
-                    <span className="font-bold text-amber-400">{cards.filter(c => c.suspended).length}</span>
+                    <span className="font-extrabold text-amber-400 text-sm">{cards.filter(c => c.suspended).length}</span>
                   </div>
                 </div>
               </div>
-              <p className="text-[11px] text-slate-500 mt-4">Offline PWA Ready</p>
+              <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-cyan-400">
+                <span>● LOCAL STORAGE READY</span>
+                <span>PWA</span>
+              </div>
             </div>
           </div>
 
+          {/* Decks Header & Search */}
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Decks</h2>
+              <h2 className="text-xs font-mono font-bold tracking-widest uppercase text-slate-400">Deck Tree Branch</h2>
               {rootNodes.length > 0 && (
-                <div className="relative w-full sm:w-72">
+                <div className="relative w-full sm:w-80">
                   <input 
                     type="text"
-                    placeholder="Filter decks..." 
+                    placeholder="Search decks..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] focus:border-violet-500 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition shadow-inner font-mono"
                   />
                   {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="absolute right-3 top-2 text-slate-500 text-xs hover:text-slate-300">
-                      ✕
-                    </button>
+                    <button onClick={() => setSearchQuery("")} className="absolute right-3.5 top-2.5 text-slate-500 text-xs hover:text-white">✕</button>
                   )}
                 </div>
               )}
             </div>
 
             {filteredRoots.length === 0 ? (
-              <div className="bg-cardbg/40 border border-slate-800/80 rounded-2xl p-8 text-center">
-                <p className="text-sm text-slate-500 italic">No decks found.</p>
+              <div className="glass-card rounded-3xl p-10 text-center">
+                <p className="text-xs font-mono text-slate-500">No decks found in workspace.</p>
               </div>
             ) : (
               <div className="space-y-1">
@@ -950,7 +819,7 @@
       );
     }
 
-    // --- Study View Component ---
+    // --- Study Screen Component ---
     function StudyView({ deckNode, allCards, allDecks, customTags, includeSuspended, onCardUpdate, onBack }) {
       const eligibleDeckIds = useMemo(() => Array.from(deckNode.allDeckIds), [deckNode]);
 
@@ -1008,7 +877,7 @@
             if (blob) {
               const url = URL.createObjectURL(blob);
               createdUrls.push(url);
-              res = res.replace(m[0], `<img src="${url}" class="max-h-[45vh] object-contain rounded-xl shadow-md" />`);
+              res = res.replace(m[0], `<img src="${url}" class="max-h-[44vh] object-contain rounded-2xl" />`);
             }
           }
 
@@ -1037,7 +906,7 @@
           for (let i = 2; i < currentCard.fields.length; i++) {
             const rawVal = currentCard.fields[i];
             if (rawVal && rawVal.trim().length > 0) {
-              const label = currentCard.fieldNames?.[i] || `Additional Info ${i - 1}`;
+              const label = currentCard.fieldNames?.[i] || `Extra Note ${i - 1}`;
               const htmlVal = await replaceUrls(rawVal, false);
               extras.push({ label, html: htmlVal });
             }
@@ -1117,17 +986,19 @@
 
       if (!currentCard || index >= deckCards.length) {
         return (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center max-w-lg mx-auto space-y-5">
-            <span className="text-6xl">🎉</span>
-            <h2 className="text-2xl font-black text-slate-100">Review Session Complete!</h2>
-            <p className="text-slate-400 text-sm">
-              All active cards in <span className="text-indigo-300 font-semibold">{deckNode.displayName}</span> have been reviewed.
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center max-w-md mx-auto space-y-6">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center shadow-xl shadow-emerald-500/25">
+              <span className="text-3xl">🚀</span>
+            </div>
+            <h2 className="text-2xl font-black text-white tracking-tight">Zero Cards Due</h2>
+            <p className="text-slate-400 text-sm font-medium leading-relaxed">
+              You cleared <span className="text-violet-400 font-bold font-mono">{deckNode.displayName}</span>. Time to rest or run custom tag sprints.
             </p>
             <button 
               onClick={onBack} 
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 font-bold text-white rounded-2xl shadow-xl shadow-indigo-600/30 transition"
+              className="px-6 py-3.5 bg-gradient-to-r from-violet-600 to-pink-600 hover:opacity-95 font-black text-white rounded-2xl shadow-xl shadow-violet-600/30 transition active:scale-95"
             >
-              Back to Deck Tree
+              Back to Command
             </button>
           </div>
         );
@@ -1137,28 +1008,29 @@
 
       return (
         <div className="max-w-5xl mx-auto h-full flex flex-col justify-between p-3 sm:p-6 select-text">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-400 pb-2 flex-shrink-0 select-none">
+          {/* Top Bar Indicators */}
+          <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-2 flex-shrink-0 select-none">
             <div className="flex items-center space-x-2 truncate max-w-[50%]">
-              <span className="text-indigo-400 font-bold truncate">{cardDeckObj ? cardDeckObj.name.split("::").pop() : deckNode.displayName}</span>
+              <span className="text-violet-400 font-bold truncate font-sans">{cardDeckObj ? cardDeckObj.name.split("::").pop() : deckNode.displayName}</span>
               <span className="text-slate-600">•</span>
-              <span>Card {index + 1} of {deckCards.length}</span>
+              <span className="bg-white/[0.05] px-2 py-0.5 rounded-md text-white font-bold">{index + 1} / {deckCards.length}</span>
             </div>
 
             <div className="flex items-center space-x-2">
               <button 
                 onClick={() => setShowSidePanel(!showSidePanel)} 
-                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
-                  showSidePanel ? "bg-indigo-600 text-white border-indigo-500" : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition ${
+                  showSidePanel ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" : "bg-white/[0.04] border-white/[0.08] text-slate-300"
                 }`}
               >
-                ℹ️ Card Info
+                Inspect
               </button>
               <button 
                 onClick={handleToggleSuspend} 
-                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition ${
                   currentCard.suspended 
                     ? "bg-amber-500/20 border-amber-500/40 text-amber-300" 
-                    : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                    : "bg-white/[0.04] border-white/[0.08] text-slate-300"
                 }`}
               >
                 {currentCard.suspended ? "⚠️ Suspended" : "Suspend"}
@@ -1166,25 +1038,28 @@
               {history.length > 0 && (
                 <button 
                   onClick={handleUndo} 
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 rounded-xl text-slate-300 transition"
+                  className="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] active:scale-95 border border-white/[0.08] rounded-xl text-slate-300 transition font-bold"
                 >
-                  ↩ Undo
+                  ↩
                 </button>
               )}
             </div>
           </div>
 
+          {/* Flashcard Body */}
           <div className="flex-1 flex gap-4 my-2 min-h-0 relative">
             <div 
               key={currentCard.id} 
-              className="flex-1 bg-cardbg border border-slate-800/80 rounded-3xl p-6 sm:p-8 flex flex-col justify-start items-center text-center shadow-2xl overflow-y-auto relative transition-all duration-150"
+              className="flex-1 glass-card rounded-3xl p-6 sm:p-10 flex flex-col justify-start items-center text-center overflow-y-auto relative transition-all duration-150"
             >
+              {/* Tag Pills */}
               {currentCard.tags.length > 0 && (
-                <div className="w-full flex flex-wrap gap-1.5 justify-center mb-4">
+                <div className="w-full flex flex-wrap gap-1.5 justify-center mb-6">
                   {currentCard.tags.map(t => (
-                    <span key={t} className="text-[11px] uppercase font-bold tracking-wider px-2.5 py-0.5 bg-slate-900/90 text-slate-300 rounded-full border border-slate-700 flex items-center space-x-1.5">
-                      <span>#{t.split("::").pop()}</span>
-                      <span className="text-[10px] bg-slate-800 text-indigo-300 px-1.5 py-0.2 rounded-full font-mono">
+                    <span key={t} className="text-[10px] font-mono uppercase font-bold tracking-wider px-3 py-1 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.08] flex items-center space-x-1.5">
+                      <span className="text-violet-400">#</span>
+                      <span>{t.split("::").pop()}</span>
+                      <span className="bg-white/[0.08] text-cyan-400 px-1.5 py-0.2 rounded-full">
                         {tagCountMap.get(t) || 1}
                       </span>
                     </span>
@@ -1192,6 +1067,7 @@
                 </div>
               )}
 
+              {/* Front Text */}
               <div 
                 onClick={() => !isFlipped && setIsFlipped(true)}
                 className="card-content w-full max-w-2xl text-slate-100 text-lg sm:text-xl font-medium leading-relaxed cursor-pointer"
@@ -1199,21 +1075,23 @@
                 <div dangerouslySetInnerHTML={{ __html: renderedMediaHtml.front }} />
               </div>
 
+              {/* Back Answer */}
               {isFlipped && (
-                <div className="mt-6 pt-6 border-t border-slate-800/80 w-full max-w-2xl text-left animate-in fade-in duration-150 space-y-5">
+                <div className="mt-8 pt-8 border-t border-white/[0.08] w-full max-w-2xl text-left animate-in fade-in duration-150 space-y-6">
                   <div className="card-content text-slate-100 text-base sm:text-lg leading-relaxed text-center" dangerouslySetInnerHTML={{ __html: renderedMediaHtml.back }} />
 
+                  {/* Extra Fields Collapsible */}
                   {renderedExtraFields.length > 0 && (
-                    <div className="pt-4 border-t border-slate-800/60 space-y-2">
+                    <div className="pt-4 border-t border-white/[0.06] space-y-2">
                       <div className="flex flex-wrap gap-2 justify-center">
                         {renderedExtraFields.map((f, idx) => (
                           <button 
                             key={idx} 
                             onClick={() => setActiveExtraField(activeExtraField === idx ? null : idx)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition ${
                               activeExtraField === idx 
-                                ? 'bg-indigo-600 border-indigo-500 text-white' 
-                                : 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-indigo-300'
+                                ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300' 
+                                : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-slate-300'
                             }`}
                           >
                             📖 {f.label} {activeExtraField === idx ? '▲' : '▼'}
@@ -1222,8 +1100,8 @@
                       </div>
 
                       {activeExtraField !== null && renderedExtraFields[activeExtraField] && (
-                        <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl mt-2 card-content text-sm text-slate-300 animate-in fade-in duration-150">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">
+                        <div className="p-4 bg-black/40 border border-white/10 rounded-2xl mt-3 card-content text-sm text-slate-300 animate-in fade-in duration-150">
+                          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 mb-2">
                             {renderedExtraFields[activeExtraField].label}
                           </h4>
                           <div dangerouslySetInnerHTML={{ __html: renderedExtraFields[activeExtraField].html }} />
@@ -1232,12 +1110,13 @@
                     </div>
                   )}
 
-                  <div className="pt-3 border-t border-slate-800/60">
+                  {/* Personal Comment Field */}
+                  <div className="pt-3 border-t border-white/[0.06]">
                     <button 
                       onClick={() => setShowCommentBox(!showCommentBox)} 
-                      className="text-xs font-bold text-slate-400 hover:text-slate-200 flex items-center space-x-1"
+                      className="text-xs font-bold text-slate-400 hover:text-white flex items-center space-x-1.5"
                     >
-                      <span>💬 Personal Notes & Mnemonics</span>
+                      <span>💬 Personal Mnemonics & Pearls</span>
                       <span className="text-[10px]">{showCommentBox ? '▲' : '▼'}</span>
                     </button>
 
@@ -1246,8 +1125,8 @@
                         rows="3"
                         value={userComment}
                         onChange={(e) => handleSaveUserComment(e.target.value)}
-                        placeholder="Type personal mnemonics, pearls, or notes here (auto-saved)..."
-                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                        placeholder="Write personal insights here (persists offline)..."
+                        className="w-full mt-2.5 bg-black/50 border border-white/10 rounded-2xl p-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono"
                       />
                     )}
                   </div>
@@ -1257,48 +1136,49 @@
               {!isFlipped && (
                 <p 
                   onClick={() => setIsFlipped(true)}
-                  className="text-xs text-slate-500 mt-8 tracking-widest uppercase font-bold cursor-pointer"
+                  className="text-[11px] font-mono text-slate-500 mt-10 tracking-widest uppercase font-bold cursor-pointer"
                 >
-                  Tap card to reveal answer
+                  [ Tap to reveal answer ]
                 </p>
               )}
             </div>
 
+            {/* Side Card Info Drawer */}
             {showSidePanel && (
-              <div className="w-64 bg-cardbg border border-slate-800/80 rounded-3xl p-5 shadow-2xl flex flex-col justify-between text-xs overflow-y-auto animate-in slide-in-from-right duration-200">
+              <div className="w-72 glass-card rounded-3xl p-6 flex flex-col justify-between text-xs overflow-y-auto animate-in slide-in-from-right duration-200">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px]">Card Metadata</h3>
-                    <button onClick={() => setShowSidePanel(false)} className="text-slate-500 hover:text-slate-300">✕</button>
+                  <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+                    <h3 className="font-mono font-bold text-slate-200 uppercase tracking-widest text-[10px]">Telemetry</h3>
+                    <button onClick={() => setShowSidePanel(false)} className="text-slate-500 hover:text-white">✕</button>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <div className="space-y-3 font-mono">
                     <div>
-                      <p className="text-slate-500 text-[10px] uppercase font-bold">Origin Subdeck</p>
-                      <p className="font-semibold text-slate-200 truncate">{cardDeckObj ? cardDeckObj.name : deckNode.fullName}</p>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Subdeck</p>
+                      <p className="font-sans font-semibold text-slate-200 truncate mt-0.5">{cardDeckObj ? cardDeckObj.name : deckNode.fullName}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500 text-[10px] uppercase font-bold">Card ID / Note ID</p>
-                      <p className="font-mono text-slate-300 text-[11px]">{currentCard.id} / {currentCard.nid}</p>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Card ID</p>
+                      <p className="text-slate-300 text-xs mt-0.5">{currentCard.id}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500 text-[10px] uppercase font-bold">Repetitions & Ease</p>
-                      <p className="font-semibold text-emerald-400">{currentCard.reps} reps • {(currentCard.easeFactor * 100).toFixed(0)}% Ease</p>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Memory Ease</p>
+                      <p className="font-bold text-emerald-400 text-xs mt-0.5">{(currentCard.easeFactor * 100).toFixed(0)}% ({currentCard.reps} reps)</p>
                     </div>
                     <div>
-                      <p className="text-slate-500 text-[10px] uppercase font-bold">Current Interval</p>
-                      <p className="font-semibold text-slate-200">{currentCard.interval} days</p>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Interval</p>
+                      <p className="font-bold text-slate-200 text-xs mt-0.5">{currentCard.interval} days</p>
                     </div>
                   </div>
 
                   {currentCard.tags.length > 0 && (
-                    <div className="pt-2 border-t border-slate-800">
-                      <p className="text-slate-500 text-[10px] uppercase font-bold mb-1.5">Attached Tags & Total Cards</p>
-                      <div className="space-y-1">
+                    <div className="pt-3 border-t border-white/[0.08]">
+                      <p className="text-slate-500 text-[10px] uppercase font-mono font-bold mb-2">Branch Tags</p>
+                      <div className="space-y-1.5">
                         {currentCard.tags.map(t => (
-                          <div key={t} className="flex justify-between items-center text-[11px] bg-slate-900/60 p-1.5 rounded-lg border border-slate-800">
+                          <div key={t} className="flex justify-between items-center text-xs bg-white/[0.03] p-2 rounded-xl border border-white/[0.05]">
                             <span className="truncate pr-1 text-slate-300 font-medium">#{t.split("::").pop()}</span>
-                            <span className="text-indigo-400 font-bold font-mono">{tagCountMap.get(t) || 1}</span>
+                            <span className="text-violet-400 font-bold font-mono">{tagCountMap.get(t) || 1}</span>
                           </div>
                         ))}
                       </div>
@@ -1306,48 +1186,49 @@
                   )}
                 </div>
 
-                <p className="text-[10px] text-slate-500 text-center mt-4">Select text anytime to highlight</p>
+                <p className="text-[10px] font-mono text-slate-500 text-center mt-4">Select text to highlight</p>
               </div>
             )}
           </div>
 
+          {/* Rating Action Dock */}
           <div className="flex-shrink-0 pt-2 safe-bottom-margin max-w-2xl mx-auto w-full select-none">
             {!isFlipped ? (
               <button 
                 onClick={() => setIsFlipped(true)} 
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 font-bold text-white text-base rounded-2xl shadow-xl shadow-indigo-600/30 active:scale-[0.98] transition"
+                className="w-full py-4 bg-gradient-to-r from-violet-600 via-pink-600 to-cyan-500 font-black text-white text-sm rounded-2xl shadow-xl shadow-violet-600/25 active:scale-[0.98] transition tracking-wide"
               >
-                Show Answer
+                SHOW ANSWER
               </button>
             ) : (
-              <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="grid grid-cols-4 gap-2.5 sm:gap-3.5">
                 <button 
                   onClick={() => handleGrade(1)} 
-                  className="py-3.5 bg-red-950/60 hover:bg-red-900 border border-red-800/60 text-red-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                  className="py-3 bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 font-extrabold rounded-2xl text-xs flex flex-col items-center active:scale-95 transition"
                 >
                   <span>Again</span>
-                  <span className="text-[10px] font-normal opacity-75 mt-0.5">&lt;10m</span>
+                  <span className="text-[10px] font-mono opacity-60 mt-0.5">&lt;10m</span>
                 </button>
                 <button 
                   onClick={() => handleGrade(2)} 
-                  className="py-3.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-800/60 text-amber-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                  className="py-3 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 font-extrabold rounded-2xl text-xs flex flex-col items-center active:scale-95 transition"
                 >
                   <span>Hard</span>
-                  <span className="text-[10px] font-normal opacity-75 mt-0.5">{Math.max(1, Math.floor(currentCard.interval * 1.2))}d</span>
+                  <span className="text-[10px] font-mono opacity-60 mt-0.5">{Math.max(1, Math.floor(currentCard.interval * 1.2))}d</span>
                 </button>
                 <button 
                   onClick={() => handleGrade(3)} 
-                  className="py-3.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800/60 text-emerald-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                  className="py-3 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30 text-emerald-300 font-extrabold rounded-2xl text-xs flex flex-col items-center active:scale-95 transition"
                 >
                   <span>Good</span>
-                  <span className="text-[10px] font-normal opacity-75 mt-0.5">{Math.max(1, Math.floor(currentCard.interval * currentCard.easeFactor))}d</span>
+                  <span className="text-[10px] font-mono opacity-60 mt-0.5">{Math.max(1, Math.floor(currentCard.interval * currentCard.easeFactor))}d</span>
                 </button>
                 <button 
                   onClick={() => handleGrade(4)} 
-                  className="py-3.5 bg-blue-950/60 hover:bg-blue-900 border border-blue-800/60 text-blue-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                  className="py-3 bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/30 text-cyan-300 font-extrabold rounded-2xl text-xs flex flex-col items-center active:scale-95 transition"
                 >
                   <span>Easy</span>
-                  <span className="text-[10px] font-normal opacity-75 mt-0.5">{Math.max(4, Math.floor(currentCard.interval * currentCard.easeFactor * 1.3))}d</span>
+                  <span className="text-[10px] font-mono opacity-60 mt-0.5">{Math.max(4, Math.floor(currentCard.interval * currentCard.easeFactor * 1.3))}d</span>
                 </button>
               </div>
             )}
@@ -1356,7 +1237,204 @@
       );
     }
 
+    // --- Global Tag Explorer View ---
+    function GlobalTagExplorerView({ allCards, allDecks, onStartStudy }) {
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedTag, setSelectedTag] = useState(null);
+
+      const globalTagMap = useMemo(() => {
+        const map = new Map();
+        allCards.forEach(card => {
+          card.tags.forEach(tag => {
+            if (!map.has(tag)) {
+              map.set(tag, {
+                tag,
+                displayName: tag.split("::").pop(),
+                cards: [],
+                activeCount: 0,
+                suspendedCount: 0
+              });
+            }
+            const entry = map.get(tag);
+            entry.cards.push(card);
+            if (card.suspended) entry.suspendedCount++;
+            else entry.activeCount++;
+          });
+        });
+        return Array.from(map.values()).sort((a, b) => b.cards.length - a.cards.length);
+      }, [allCards]);
+
+      const filteredTags = useMemo(() => {
+        if (!searchQuery.trim()) return globalTagMap;
+        const q = searchQuery.toLowerCase();
+        return globalTagMap.filter(item => item.tag.toLowerCase().includes(q));
+      }, [globalTagMap, searchQuery]);
+
+      if (selectedTag) {
+        const tagData = globalTagMap.find(t => t.tag === selectedTag);
+        return (
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 pb-28">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <button 
+                onClick={() => setSelectedTag(null)}
+                className="px-4 py-2 bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 rounded-2xl text-xs font-bold font-mono"
+              >
+                ← All Tags
+              </button>
+              <button 
+                onClick={() => onStartStudy([selectedTag])}
+                className="px-5 py-2 bg-gradient-to-r from-violet-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-violet-600/30"
+              >
+                Study #{tagData?.displayName} ({tagData?.activeCount}) →
+              </button>
+            </div>
+
+            <div>
+              <h2 className="text-lg font-black text-white break-all">#{selectedTag}</h2>
+              <p className="text-xs font-mono text-slate-400 mt-1">{tagData?.cards.length} cards in this tag cluster</p>
+            </div>
+
+            <div className="space-y-2">
+              {tagData?.cards.map((card, i) => (
+                <div key={card.id} className="p-4 glass-card rounded-2xl text-xs space-y-2">
+                  <div className="flex justify-between items-center text-slate-400 font-mono">
+                    <span className="text-[10px]">#{i + 1} • Card {card.id}</span>
+                    <span className={card.suspended ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                      {card.suspended ? "Suspended" : "Active"}
+                    </span>
+                  </div>
+                  <div 
+                    className="text-slate-200 line-clamp-2 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: card.fields[0] || "Empty Prompt" }} 
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 pb-28">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xs font-mono font-bold tracking-widest uppercase text-slate-400">All Tags Cluster</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Filter across the entire collection</p>
+            </div>
+            <input 
+              type="text"
+              placeholder="Filter tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-white/[0.04] border border-white/[0.08] focus:border-violet-500 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none w-full sm:w-72 font-mono"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {filteredTags.map(item => (
+              <div 
+                key={item.tag} 
+                onClick={() => setSelectedTag(item.tag)}
+                className="p-4 glass-card hover:border-violet-500/40 rounded-3xl cursor-pointer flex items-center justify-between transition-all duration-200 active:scale-[0.99]"
+              >
+                <div className="min-w-0 pr-3">
+                  <p className="font-extrabold text-white text-sm truncate">#{item.displayName}</p>
+                  <p className="text-[11px] font-mono text-slate-400 truncate max-w-xs mt-0.5">{item.tag}</p>
+                </div>
+                <div className="text-right flex-shrink-0 font-mono">
+                  <span className="text-sm font-black text-cyan-400">{item.cards.length}</span>
+                  <p className="text-[10px] text-slate-500 uppercase">cards</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     // --- Tag Manager View ---
+    function TagTreeNode({ node, onBatchSuspend, selectedTags, onToggleSelect, depth = 0 }) {
+      const [isOpen, setIsOpen] = useState(depth === 0);
+      const childNodes = Object.values(node.children);
+      const hasChildren = childNodes.length > 0;
+      const isSelected = selectedTags.includes(node.fullTag);
+
+      return (
+        <div className="flex flex-col select-none">
+          <div 
+            className={`flex items-center justify-between p-3.5 my-1 rounded-2xl border transition-all ${
+              isSelected ? 'bg-violet-950/40 border-violet-500/60 shadow-lg shadow-violet-500/10' : 'glass-card hover:border-white/20'
+            }`}
+            style={{ marginLeft: `${depth * 20}px` }}
+          >
+            <div className="flex items-center space-x-3 flex-1 min-w-0 pr-2">
+              {hasChildren ? (
+                <button 
+                  onClick={() => setIsOpen(!isOpen)}
+                  className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/[0.04] text-violet-400 hover:bg-violet-950 text-xs font-bold transition flex-shrink-0"
+                >
+                  {isOpen ? "▼" : "▶"}
+                </button>
+              ) : (
+                <span className="w-7 h-7 flex items-center justify-center text-slate-600 text-xs flex-shrink-0">🏷️</span>
+              )}
+
+              <input 
+                type="checkbox" 
+                checked={isSelected} 
+                onChange={() => onToggleSelect(node.fullTag)}
+                className="rounded-lg text-violet-600 focus:ring-0 cursor-pointer flex-shrink-0 w-4 h-4 bg-transparent border-white/20" 
+              />
+
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onToggleSelect(node.fullTag)}>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-100 text-sm truncate">{node.name}</span>
+                  {hasChildren && (
+                    <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 px-2 py-0.5 rounded-full">
+                      +{childNodes.length}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                  <span className="text-emerald-400 font-bold">{node.active} active</span> • <span className="text-amber-400 font-bold">{node.suspended} susp</span> ({node.total} total)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-1.5 flex-shrink-0">
+              <button 
+                onClick={() => onBatchSuspend(node.fullTag, true)}
+                className="px-3 py-1.5 bg-white/[0.04] hover:bg-amber-950/60 hover:text-amber-300 text-slate-400 rounded-xl text-xs font-bold border border-white/[0.06] transition"
+              >
+                Suspend
+              </button>
+              <button 
+                onClick={() => onBatchSuspend(node.fullTag, false)}
+                className="px-3 py-1.5 bg-white/[0.04] hover:bg-emerald-950/60 hover:text-emerald-300 text-slate-400 rounded-xl text-xs font-bold border border-white/[0.06] transition"
+              >
+                Unsuspend
+              </button>
+            </div>
+          </div>
+
+          {hasChildren && isOpen && (
+            <div className="flex flex-col border-l-2 border-violet-500/20 ml-4 pl-1">
+              {childNodes.map(child => (
+                <TagTreeNode 
+                  key={child.fullTag} 
+                  node={child} 
+                  onBatchSuspend={onBatchSuspend}
+                  selectedTags={selectedTags}
+                  onToggleSelect={onToggleSelect}
+                  depth={depth + 1}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function ManagerView({ deckNode, allCards, onUpdate, onStartCustomStudy }) {
       const eligibleDeckIds = useMemo(() => Array.from(deckNode.allDeckIds), [deckNode]);
       const deckCards = useMemo(() => allCards.filter(c => eligibleDeckIds.includes(c.did)), [allCards, eligibleDeckIds]);
@@ -1380,18 +1458,17 @@
 
         await dbBatchUpdateCards(cardsToUpdate);
         await onUpdate();
-        setActionStatus(`Updated ${cardsToUpdate.length} cards in #${fullTag}`);
-        setTimeout(() => setActionStatus(""), 2500);
+        setActionStatus(`Done: ${cardsToUpdate.length} cards`);
+        setTimeout(() => setActionStatus(""), 2000);
       };
 
       const handleBatchSuspendAll = async (suspendState) => {
-        setActionStatus(suspendState ? "Suspending all cards in branch..." : "Unsuspending all cards in branch...");
+        setActionStatus(suspendState ? "Suspending branch..." : "Unsuspending branch...");
         const cardsToUpdate = deckCards.map(c => ({ ...c, suspended: suspendState }));
-        
         await dbBatchUpdateCards(cardsToUpdate);
         await onUpdate();
-        setActionStatus(`${suspendState ? "Suspended" : "Unsuspended"} all ${cardsToUpdate.length} cards!`);
-        setTimeout(() => setActionStatus(""), 2500);
+        setActionStatus(`Done: all ${cardsToUpdate.length} cards`);
+        setTimeout(() => setActionStatus(""), 2000);
       };
 
       const handleToggleSelectTag = (fullTag) => {
@@ -1407,39 +1484,39 @@
       }, [rootTagNodes, searchTag]);
 
       return (
-        <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
+        <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6 pb-28">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-100">{deckNode.displayName}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Hierarchical Tag & Suspension Manager</p>
+              <h2 className="text-xl font-black text-white">{deckNode.displayName}</h2>
+              <p className="text-xs font-mono text-slate-400 mt-1">Tag Cluster Control & Card Suspension</p>
               {actionStatus && (
-                <p className="text-xs font-bold text-indigo-400 mt-1 animate-pulse">{actionStatus}</p>
+                <p className="text-xs font-mono font-bold text-cyan-400 mt-1.5 animate-pulse">{actionStatus}</p>
               )}
             </div>
             
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 font-mono">
               <button 
                 onClick={() => handleBatchSuspendAll(true)} 
-                className="px-4 py-2 bg-amber-950/80 hover:bg-amber-900 border border-amber-700 text-amber-300 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+                className="px-4 py-2 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/30 text-amber-300 rounded-2xl text-xs font-bold transition active:scale-95"
               >
-                ⚠️ Suspend All in Branch ({deckCards.length})
+                Suspend Branch ({deckCards.length})
               </button>
               <button 
                 onClick={() => handleBatchSuspendAll(false)} 
-                className="px-4 py-2 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+                className="px-4 py-2 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/30 text-emerald-300 rounded-2xl text-xs font-bold transition active:scale-95"
               >
-                ✨ Unsuspend All
+                Unsuspend All
               </button>
             </div>
           </div>
 
           {selectedTags.length > 0 && (
-            <div className="p-5 bg-indigo-950/40 border border-indigo-500/50 rounded-2xl space-y-3 shadow-lg">
+            <div className="p-5 bg-gradient-to-r from-violet-950/60 to-pink-950/40 border border-violet-500/40 rounded-3xl space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                  Targeted Tag Study ({selectedTags.length} tag branches selected)
+                <p className="text-xs font-mono font-bold text-violet-300 uppercase tracking-widest">
+                  Active Tag Drill ({selectedTags.length} clusters)
                 </p>
-                <button onClick={() => setSelectedTags([])} className="text-xs text-indigo-400 underline">
+                <button onClick={() => setSelectedTags([])} className="text-xs text-pink-400 font-mono underline">
                   Clear
                 </button>
               </div>
@@ -1450,37 +1527,37 @@
                   id="include-susp" 
                   checked={customIncludeSuspended} 
                   onChange={(e) => setCustomIncludeSuspended(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-0"
+                  className="rounded text-violet-600 focus:ring-0"
                 />
-                <label htmlFor="include-susp" className="text-slate-300 text-xs cursor-pointer">
-                  Include suspended cards during this targeted study session
+                <label htmlFor="include-susp" className="text-slate-300 text-xs font-medium cursor-pointer">
+                  Include suspended cards during sprint
                 </label>
               </div>
 
               <button 
                 onClick={() => onStartCustomStudy(selectedTags, customIncludeSuspended)}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-600/30 transition active:scale-[0.99]"
+                className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-pink-600 hover:opacity-95 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-violet-600/30 transition active:scale-[0.99]"
               >
-                Study Selected Tags →
+                START TAG SPRINT →
               </button>
             </div>
           )}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Hierarchical Tag Tree</h3>
+              <h3 className="text-xs font-mono font-bold tracking-widest uppercase text-slate-400">Tag Hierarchy</h3>
               <input 
                 type="text" 
-                placeholder="Search tag hierarchy..." 
+                placeholder="Search tags..." 
                 value={searchTag}
                 onChange={(e) => setSearchTag(e.target.value)}
-                className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-200 placeholder-slate-500 w-52"
+                className="bg-white/[0.04] border border-white/[0.08] focus:border-violet-500 rounded-2xl px-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none w-56 font-mono"
               />
             </div>
 
             {filteredRootTags.length === 0 ? (
-              <div className="bg-cardbg/40 border border-slate-800 rounded-xl p-6 text-center">
-                <p className="text-sm text-slate-500 italic">No tags found in this deck.</p>
+              <div className="glass-card rounded-3xl p-8 text-center">
+                <p className="text-xs font-mono text-slate-500">No tags found in this deck branch.</p>
               </div>
             ) : (
               <div className="space-y-1">
