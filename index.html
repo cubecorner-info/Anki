@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#090d16" />
+  <title>AnkiLite PWA</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+            cardbg: '#141c2e',
+            subtle: '#1f2b45',
+            surface: '#0f172a'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      background-color: #090d16;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card-content img {
+      max-width: 100%;
+      max-height: 48vh;
+      object-fit: contain;
+      border-radius: 0.75rem;
+      margin: 1rem auto;
+      display: block;
+    }
+    .card-content audio {
+      margin: 1rem auto;
+      width: 100%;
+      max-width: 400px;
+      display: block;
+    }
+    .cloze-bracket {
+      color: #38bdf8;
+      font-weight: 700;
+      background-color: rgba(56, 189, 248, 0.15);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .cloze-reveal {
+      color: #4ade80;
+      font-weight: 700;
+      background-color: rgba(74, 222, 128, 0.15);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    ::selection {
+      background: #facc15;
+      color: #000;
+    }
+    .safe-bottom-margin {
+      margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950">
+  <div id="root" class="h-full w-full flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    const DB_NAME = "AnkiLiteDB";
+    const DB_VERSION = 1;
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("decks")) db.createObjectStore("decks", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("cards")) {
+            const cardStore = db.createObjectStore("cards", { keyPath: "id" });
+            cardStore.createIndex("did", "did", { unique: false });
+          }
+          if (!db.objectStoreNames.contains("media")) db.createObjectStore("media", { keyPath: "name" });
+          if (!db.objectStoreNames.contains("userComments")) db.createObjectStore("userComments", { keyPath: "cardId" });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbPutBatch(storeName, items) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        items.forEach(item => store.put(item));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function dbGetAll(storeName) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbGetMedia(name) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("media", "readonly");
+        const store = tx.objectStore("media");
+        const req = store.get(name);
+        req.onsuccess = () => resolve(req.result?.blob || null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbUpdateCard(card) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("cards", "readwrite");
+        const store = tx.objectStore("cards");
+        store.put(card);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // High-performance single atomic transaction for batch updates
+    async function dbBatchUpdateCards(cardsToUpdate) {
+      if (!cardsToUpdate || cardsToUpdate.length === 0) return;
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("cards", "readwrite");
+        const store = tx.objectStore("cards");
+        cardsToUpdate.forEach(card => store.put(card));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function dbSaveComment(cardId, comment) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("userComments", "readwrite");
+        tx.objectStore("userComments").put({ cardId, comment, updatedAt: Date.now() });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function dbGetComment(cardId) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("userComments", "readonly");
+        const req = tx.objectStore("userComments").get(cardId);
+        req.onsuccess = () => resolve(req.result?.comment || "");
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbDeleteDeck(deckId, deckName, allDecks) {
+      const prefix = deckName + "::";
+      const matchingDeckIds = allDecks
+        .filter(d => d.id === deckId || d.name === deckName || d.name.startsWith(prefix))
+        .map(d => d.id);
+
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(["decks", "cards"], "readwrite");
+        const deckStore = tx.objectStore("decks");
+        const cardStore = tx.objectStore("cards");
+
+        matchingDeckIds.forEach(id => deckStore.delete(id));
+        const req = cardStore.openCursor();
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            if (matchingDeckIds.includes(cursor.value.did)) {
+              cursor.delete();
+            }
+            cursor.continue();
+          }
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // --- Parser ---
+    async function parseApkg(file) {
+      const zip = await JSZip.loadAsync(file);
+      let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
+      if (!dbFile) throw new Error("Invalid .apkg: database not found inside archive.");
+
+      const dbBuffer = await dbFile.async("uint8array");
+      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
+      const db = new SQL.Database(dbBuffer);
+
+      // Media
+      const mediaJsonFile = zip.file("media");
+      const mediaMap = mediaJsonFile ? JSON.parse(await mediaJsonFile.async("text")) : {};
+      const mediaItems = [];
+      for (const [key, filename] of Object.entries(mediaMap)) {
+        const mFile = zip.file(key);
+        if (mFile) {
+          const blob = await mFile.async("blob");
+          mediaItems.push({ name: filename.toLowerCase(), blob });
+        }
+      }
+      if (mediaItems.length > 0) await dbPutBatch("media", mediaItems);
+
+      // Decks & Field model labels
+      const colRes = db.exec("SELECT decks, models FROM col");
+      const decksJson = JSON.parse(colRes[0].values[0][0]);
+      const modelsJson = JSON.parse(colRes[0].values[0][1]);
+      
+      const modelFieldNames = new Map();
+      for (const [mid, model] of Object.entries(modelsJson)) {
+        modelFieldNames.set(mid, (model.flds || []).map(f => f.name));
+      }
+
+      const decks = [];
+      for (const [id, d] of Object.entries(decksJson)) {
+        if (d.name && d.name !== "Default") {
+          const normalizedName = d.name.replace(/[\x1f\u001f]/g, "::").trim();
+          decks.push({ id: String(d.id), name: normalizedName });
+        }
+      }
+
+      // Notes
+      const notesRes = db.exec("SELECT id, mid, flds, tags FROM notes");
+      const notesMap = new Map();
+      if (notesRes.length > 0) {
+        notesRes[0].values.forEach(row => {
+          const [id, mid, flds, tags] = row;
+          const fields = flds.split("\x1f");
+          const tagList = tags ? tags.trim().split(/\s+/).filter(Boolean) : [];
+          const fieldNames = modelFieldNames.get(String(mid)) || [];
+          notesMap.set(id, { id, fields, tags: tagList, fieldNames });
+        });
+      }
+
+      // Cards
+      const cardsRes = db.exec("SELECT id, nid, did, ord, type, queue, factor, reps, ivl, due FROM cards");
+      const cards = [];
+      if (cardsRes.length > 0) {
+        cardsRes[0].values.forEach(row => {
+          const [id, nid, did, ord, type, queue, factor, reps, ivl, due] = row;
+          const note = notesMap.get(nid);
+          if (note) {
+            cards.push({
+              id: String(id),
+              nid: String(nid),
+              did: String(did),
+              ord,
+              fields: note.fields,
+              fieldNames: note.fieldNames,
+              tags: note.tags,
+              suspended: queue === -1,
+              interval: ivl || 0,
+              easeFactor: (factor || 2500) / 1000,
+              reps: reps || 0,
+              dueDate: due || Date.now()
+            });
+          }
+        });
+      }
+
+      db.close();
+      if (decks.length === 0) decks.push({ id: "1", name: file.name.replace(".apkg", "") });
+      await dbPutBatch("decks", decks);
+      await dbPutBatch("cards", cards);
+    }
+
+    function renderCardField(html, isFront = true, clozeOrd = 0) {
+      if (!html) return "";
+      let processed = html;
+      const clozeRegex = /\{\{c(\d+)::([^:}]+)(?:::([^}]+))?\}\}/g;
+      processed = processed.replace(clozeRegex, (match, num, text, hint) => {
+        const isCurrentCloze = parseInt(num) === (clozeOrd + 1);
+        if (isFront) {
+          return isCurrentCloze ? `<span class="cloze-bracket">[${hint || "..."}]</span>` : text;
+        } else {
+          return isCurrentCloze ? `<span class="cloze-reveal">${text}</span>` : text;
+        }
+      });
+      return processed;
+    }
+
+    function buildCleanDeckTree(decks, cards) {
+      const root = { children: {} };
+      decks.forEach(d => {
+        const parts = d.name.split("::").map(p => p.trim()).filter(Boolean);
+        let current = root;
+
+        parts.forEach((part, idx) => {
+          if (!current.children[part]) {
+            current.children[part] = {
+              displayName: part,
+              fullName: parts.slice(0, idx + 1).join("::"),
+              deckId: idx === parts.length - 1 ? d.id : null,
+              children: {},
+              allDeckIds: new Set()
+            };
+          }
+          if (idx === parts.length - 1) {
+            current.children[part].deckId = d.id;
+          }
+          current = current.children[part];
+        });
+      });
+
+      function populateStats(node) {
+        const childNodes = Object.values(node.children);
+        let directActive = 0;
+        let directSuspended = 0;
+        let directTotal = 0;
+        let descendantDeckIds = new Set();
+
+        if (node.deckId) {
+          descendantDeckIds.add(node.deckId);
+          const directCards = cards.filter(c => c.did === node.deckId);
+          directTotal = directCards.length;
+          directActive = directCards.filter(c => !c.suspended).length;
+          directSuspended = directTotal - directActive;
+        }
+
+        let totalActive = directActive;
+        let totalSuspended = directSuspended;
+        let totalCards = directTotal;
+
+        childNodes.forEach(child => {
+          populateStats(child);
+          totalActive += child.totalActive;
+          totalSuspended += child.totalSuspended;
+          totalCards += child.totalCards;
+          child.allDeckIds.forEach(id => descendantDeckIds.add(id));
+        });
+
+        node.directActive = directActive;
+        node.directSuspended = directSuspended;
+        node.directTotal = directTotal;
+        node.totalActive = totalActive;
+        node.totalSuspended = totalSuspended;
+        node.totalCards = totalCards;
+        node.allDeckIds = descendantDeckIds;
+      }
+
+      Object.values(root.children).forEach(populateStats);
+      return root.children;
+    }
+
+    function buildTagTree(deckCards) {
+      const root = { children: {} };
+      deckCards.forEach(card => {
+        card.tags.forEach(rawTag => {
+          const parts = rawTag.split("::").map(p => p.trim()).filter(Boolean);
+          let current = root;
+          parts.forEach((part, idx) => {
+            if (!current.children[part]) {
+              current.children[part] = {
+                name: part,
+                fullTag: parts.slice(0, idx + 1).join("::"),
+                children: {},
+                cardIds: new Set()
+              };
+            }
+            current = current.children[part];
+            current.cardIds.add(card.id);
+          });
+        });
+      });
+
+      function populateTagStats(node) {
+        const childNodes = Object.values(node.children);
+        const allCardIds = new Set(node.cardIds);
+        childNodes.forEach(child => {
+          populateTagStats(child);
+          child.allCardIds.forEach(id => allCardIds.add(id));
+        });
+        node.allCardIds = allCardIds;
+        const matchingCards = deckCards.filter(c => allCardIds.has(c.id));
+        node.total = matchingCards.length;
+        node.active = matchingCards.filter(c => !c.suspended).length;
+        node.suspended = node.total - node.active;
+      }
+
+      Object.values(root.children).forEach(populateTagStats);
+      return root.children;
+    }
+
+    // --- App Component ---
+    function App() {
+      const [view, setView] = useState("deckList");
+      const [decks, setDecks] = useState([]);
+      const [cards, setCards] = useState([]);
+      const [selectedDeckNode, setSelectedDeckNode] = useState(null);
+      const [customStudyTags, setCustomStudyTags] = useState([]);
+      const [includeSuspendedInCustom, setIncludeSuspendedInCustom] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [statusMsg, setStatusMsg] = useState("");
+
+      const loadData = async () => {
+        const d = await dbGetAll("decks");
+        const c = await dbGetAll("cards");
+        setDecks(d);
+        setCards(c);
+      };
+
+      useEffect(() => { loadData(); }, []);
+
+      const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setLoading(true);
+        setStatusMsg("Unzipping & Parsing SQLite Database...");
+        try {
+          await parseApkg(file);
+          await loadData();
+          setStatusMsg("");
+        } catch (err) {
+          alert("Error importing .apkg: " + err.message);
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div className="flex flex-col h-full w-full bg-slate-950 text-slate-100 relative">
+          <header className="px-6 py-3.5 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 flex items-center justify-between flex-shrink-0 z-10">
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">⚡</span>
+              <div>
+                <h1 className="text-lg font-black tracking-tight text-indigo-400 leading-none">AnkiLite</h1>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">Spaced Repetition PWA</p>
+              </div>
+            </div>
+
+            {view !== "deckList" && (
+              <button 
+                onClick={() => { setView("deckList"); loadData(); }} 
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
+              >
+                <span>←</span>
+                <span>Deck Tree</span>
+              </button>
+            )}
+          </header>
+
+          <main className="flex-1 overflow-y-auto">
+            {loading && (
+              <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-slate-300 font-semibold">{statusMsg}</p>
+              </div>
+            )}
+
+            {!loading && view === "deckList" && (
+              <DeckListView 
+                decks={decks} 
+                cards={cards} 
+                onSelectDeck={(node) => { 
+                  setSelectedDeckNode(node); 
+                  setCustomStudyTags([]); 
+                  setView("study"); 
+                }}
+                onOpenManager={(node) => { 
+                  setSelectedDeckNode(node); 
+                  setView("manager"); 
+                }}
+                onUpload={handleFileUpload}
+                onDeleteDeck={async (node) => { 
+                  if (confirm(`Delete "${node.displayName}" and all its subdecks?`)) { 
+                    await dbDeleteDeck(node.deckId, node.fullName, decks); 
+                    loadData(); 
+                  } 
+                }}
+              />
+            )}
+
+            {!loading && view === "study" && selectedDeckNode && (
+              <StudyView 
+                deckNode={selectedDeckNode} 
+                allCards={cards} 
+                allDecks={decks}
+                customTags={customStudyTags}
+                includeSuspended={includeSuspendedInCustom}
+                onCardUpdate={loadData}
+                onBack={() => { setView("deckList"); loadData(); }}
+              />
+            )}
+
+            {!loading && view === "manager" && selectedDeckNode && (
+              <ManagerView 
+                deckNode={selectedDeckNode} 
+                allCards={cards} 
+                onUpdate={loadData}
+                onStartCustomStudy={(tags, incSuspended) => {
+                  setCustomStudyTags(tags);
+                  setIncludeSuspendedInCustom(incSuspended);
+                  setView("study");
+                }}
+              />
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    // --- Recursive Tag Node Component ---
+    function TagTreeNode({ node, onBatchSuspend, selectedTags, onToggleSelect, depth = 0 }) {
+      const [isOpen, setIsOpen] = useState(depth === 0);
+      const childNodes = Object.values(node.children);
+      const hasChildren = childNodes.length > 0;
+      const isSelected = selectedTags.includes(node.fullTag);
+
+      return (
+        <div className="flex flex-col select-none">
+          <div 
+            className={`flex items-center justify-between p-3 my-0.5 rounded-xl border transition-all ${
+              isSelected ? 'bg-indigo-950/40 border-indigo-500/50' : 'bg-cardbg hover:bg-slate-800/80 border-slate-800'
+            }`}
+            style={{ marginLeft: `${depth * 20}px` }}
+          >
+            <div className="flex items-center space-x-2.5 flex-1 min-w-0 pr-2">
+              {hasChildren ? (
+                <button 
+                  onClick={() => setIsOpen(!isOpen)}
+                  className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-800 text-indigo-400 hover:bg-indigo-950 text-xs font-bold transition flex-shrink-0"
+                >
+                  {isOpen ? "▼" : "▶"}
+                </button>
+              ) : (
+                <span className="w-6 h-6 flex items-center justify-center text-slate-600 text-xs flex-shrink-0">🏷️</span>
+              )}
+
+              <input 
+                type="checkbox" 
+                checked={isSelected} 
+                onChange={() => onToggleSelect(node.fullTag)}
+                className="rounded text-indigo-600 focus:ring-0 cursor-pointer flex-shrink-0" 
+              />
+
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onToggleSelect(node.fullTag)}>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-200 text-sm truncate">{node.name}</span>
+                  {hasChildren && (
+                    <span className="text-[10px] text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded font-mono">
+                      +{childNodes.length}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  <span className="text-emerald-400 font-semibold">{node.active} active</span> • <span className="text-amber-400 font-semibold">{node.suspended} suspended</span> ({node.total} total cards)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-1.5 flex-shrink-0">
+              <button 
+                onClick={() => onBatchSuspend(node.fullTag, true)}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-amber-950/60 hover:text-amber-300 text-slate-400 rounded-lg text-xs font-semibold border border-slate-700 transition"
+              >
+                Suspend
+              </button>
+              <button 
+                onClick={() => onBatchSuspend(node.fullTag, false)}
+                className="px-2.5 py-1 bg-slate-800 hover:bg-emerald-950/60 hover:text-emerald-300 text-slate-400 rounded-lg text-xs font-semibold border border-slate-700 transition"
+              >
+                Unsuspend
+              </button>
+            </div>
+          </div>
+
+          {hasChildren && isOpen && (
+            <div className="flex flex-col border-l-2 border-indigo-500/20 ml-4 pl-1">
+              {childNodes.map(child => (
+                <TagTreeNode 
+                  key={child.fullTag} 
+                  node={child} 
+                  onBatchSuspend={onBatchSuspend}
+                  selectedTags={selectedTags}
+                  onToggleSelect={onToggleSelect}
+                  depth={depth + 1}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- Deck Tree Component ---
+    function DeckTreeNode({ node, onSelectDeck, onOpenManager, onDeleteDeck, depth = 0 }) {
+      const [isOpen, setIsOpen] = useState(true);
+      const childNodes = Object.values(node.children);
+      const hasChildren = childNodes.length > 0;
+
+      return (
+        <div className="flex flex-col select-none">
+          <div 
+            className="group flex items-center justify-between p-3.5 my-1 bg-cardbg hover:bg-slate-800/90 border border-slate-800/80 rounded-2xl shadow-sm transition-all duration-150"
+            style={{ marginLeft: `${depth * 24}px` }}
+          >
+            <div className="flex items-center space-x-3 flex-1 min-w-0 pr-3">
+              {hasChildren ? (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/80 text-indigo-400 hover:bg-indigo-950 text-xs font-bold transition flex-shrink-0"
+                >
+                  {isOpen ? "▼" : "▶"}
+                </button>
+              ) : (
+                <span className="w-7 h-7 flex items-center justify-center text-slate-600 text-sm flex-shrink-0">🗎</span>
+              )}
+
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectDeck(node)}>
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-100 text-sm sm:text-base truncate group-hover:text-indigo-300 transition">
+                    {node.displayName}
+                  </span>
+                  {hasChildren && (
+                    <span className="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded-md font-mono">
+                      {childNodes.length} sub-decks
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center space-x-3 text-xs mt-1">
+                  <span className="text-emerald-400 font-semibold">{node.totalActive} due</span>
+                  {node.totalSuspended > 0 && (
+                    <span className="text-amber-400 font-medium">{node.totalSuspended} suspended</span>
+                  )}
+                  <span className="text-slate-500">({node.totalCards} total)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <button 
+                onClick={() => onSelectDeck(node)}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold rounded-xl text-xs shadow-md shadow-indigo-600/20 transition"
+              >
+                Study
+              </button>
+              <button 
+                onClick={() => onOpenManager(node)}
+                title="Manage Tags & Suspension"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 active:scale-95 rounded-xl text-xs font-semibold border border-slate-700 transition"
+              >
+                🏷️ Tags
+              </button>
+              <button 
+                onClick={() => onDeleteDeck(node)}
+                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg text-xs transition"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {hasChildren && isOpen && (
+            <div className="flex flex-col border-l-2 border-indigo-500/20 ml-5 pl-1 my-0.5">
+              {childNodes.map(child => (
+                <DeckTreeNode 
+                  key={child.fullName} 
+                  node={child} 
+                  onSelectDeck={onSelectDeck} 
+                  onOpenManager={onOpenManager} 
+                  onDeleteDeck={onDeleteDeck} 
+                  depth={depth + 1}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- Deck List View Component ---
+    function DeckListView({ decks, cards, onSelectDeck, onOpenManager, onUpload, onDeleteDeck }) {
+      const [searchQuery, setSearchQuery] = useState("");
+      const deckTree = useMemo(() => buildCleanDeckTree(decks, cards), [decks, cards]);
+      const rootNodes = Object.values(deckTree);
+
+      const filteredRoots = useMemo(() => {
+        if (!searchQuery.trim()) return rootNodes;
+        const q = searchQuery.toLowerCase();
+        return rootNodes.filter(node => node.fullName.toLowerCase().includes(q));
+      }, [rootNodes, searchQuery]);
+
+      return (
+        <div className="max-w-5xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 border-2 border-dashed border-slate-800 hover:border-indigo-500/60 bg-cardbg/40 backdrop-blur-sm rounded-3xl p-6 sm:p-8 text-center transition flex flex-col items-center justify-center cursor-pointer shadow-lg">
+              <input type="file" accept=".apkg" onChange={onUpload} id="apkg-upload" className="hidden" />
+              <label htmlFor="apkg-upload" className="cursor-pointer space-y-2 w-full">
+                <span className="text-4xl block">📥</span>
+                <p className="text-base font-bold text-indigo-400">Import Anki Package (.apkg)</p>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Processes and stores decks, media, and multi-level subdecks entirely offline in your browser.
+                </p>
+              </label>
+            </div>
+
+            <div className="bg-cardbg border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-lg">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Collection Stats</h3>
+                <div className="mt-4 space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Total Cards</span>
+                    <span className="font-bold text-slate-100">{cards.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Active Queue</span>
+                    <span className="font-bold text-emerald-400">{cards.filter(c => !c.suspended).length}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Suspended</span>
+                    <span className="font-bold text-amber-400">{cards.filter(c => c.suspended).length}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-4">Offline PWA Ready</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Decks</h2>
+              {rootNodes.length > 0 && (
+                <div className="relative w-full sm:w-72">
+                  <input 
+                    type="text"
+                    placeholder="Filter decks..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-3 top-2 text-slate-500 text-xs hover:text-slate-300">
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {filteredRoots.length === 0 ? (
+              <div className="bg-cardbg/40 border border-slate-800/80 rounded-2xl p-8 text-center">
+                <p className="text-sm text-slate-500 italic">No decks found.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredRoots.map(node => (
+                  <DeckTreeNode 
+                    key={node.fullName} 
+                    node={node} 
+                    onSelectDeck={onSelectDeck} 
+                    onOpenManager={onOpenManager} 
+                    onDeleteDeck={onDeleteDeck} 
+                    depth={0}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // --- Study View Component ---
+    function StudyView({ deckNode, allCards, allDecks, customTags, includeSuspended, onCardUpdate, onBack }) {
+      const eligibleDeckIds = useMemo(() => Array.from(deckNode.allDeckIds), [deckNode]);
+
+      const deckCards = useMemo(() => {
+        return allCards.filter(c => {
+          const matchDeck = eligibleDeckIds.includes(c.did);
+          if (!matchDeck) return false;
+          if (customTags.length > 0) {
+            const hasTag = c.tags.some(t => customTags.some(selected => t === selected || t.startsWith(selected + "::")));
+            if (!hasTag) return false;
+            return includeSuspended ? true : !c.suspended;
+          }
+          return !c.suspended;
+        });
+      }, [allCards, eligibleDeckIds, customTags, includeSuspended]);
+
+      const [index, setIndex] = useState(0);
+      const [isFlipped, setIsFlipped] = useState(false);
+      const [history, setHistory] = useState([]);
+      const [renderedMediaHtml, setRenderedMediaHtml] = useState({ front: "", back: "" });
+      const [renderedExtraFields, setRenderedExtraFields] = useState([]);
+      const [activeExtraField, setActiveExtraField] = useState(null);
+      const [showSidePanel, setShowSidePanel] = useState(false);
+      const [userComment, setUserComment] = useState("");
+      const [showCommentBox, setShowCommentBox] = useState(false);
+
+      const currentCard = deckCards[index];
+
+      const tagCountMap = useMemo(() => {
+        const counts = new Map();
+        allCards.forEach(c => {
+          c.tags.forEach(t => counts.set(t, (counts.get(t) || 0) + 1));
+        });
+        return counts;
+      }, [allCards]);
+
+      useEffect(() => {
+        if (!currentCard) return;
+        dbGetComment(currentCard.id).then(c => setUserComment(c));
+      }, [currentCard]);
+
+      useEffect(() => {
+        if (!currentCard) return;
+        let isCancelled = false;
+        const createdUrls = [];
+
+        async function replaceUrls(html, isFront = false) {
+          let res = renderCardField(html, isFront, currentCard.ord);
+          
+          const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+          const matches = [...res.matchAll(imgRegex)];
+          for (const m of matches) {
+            const filename = decodeURIComponent(m[1]).toLowerCase();
+            const blob = await dbGetMedia(filename);
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              createdUrls.push(url);
+              res = res.replace(m[0], `<img src="${url}" class="max-h-[45vh] object-contain rounded-xl shadow-md" />`);
+            }
+          }
+
+          const audioRegex = /\[sound:([^\]]+)\]/gi;
+          const audioMatches = [...res.matchAll(audioRegex)];
+          for (const m of audioMatches) {
+            const filename = decodeURIComponent(m[1]).toLowerCase();
+            const blob = await dbGetMedia(filename);
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              createdUrls.push(url);
+              res = res.replace(m[0], `<audio controls class="my-3"><source src="${url}"></audio>`);
+            }
+          }
+          return res;
+        }
+
+        async function resolveAllMedia() {
+          const frontRaw = currentCard.fields[0] || "";
+          const backRaw = currentCard.fields[1] || "";
+
+          const front = await replaceUrls(frontRaw, true);
+          const back = await replaceUrls(backRaw, false);
+
+          const extras = [];
+          for (let i = 2; i < currentCard.fields.length; i++) {
+            const rawVal = currentCard.fields[i];
+            if (rawVal && rawVal.trim().length > 0) {
+              const label = currentCard.fieldNames?.[i] || `Additional Info ${i - 1}`;
+              const htmlVal = await replaceUrls(rawVal, false);
+              extras.push({ label, html: htmlVal });
+            }
+          }
+
+          if (!isCancelled) {
+            setRenderedMediaHtml({ front, back });
+            setRenderedExtraFields(extras);
+            setActiveExtraField(null);
+          }
+        }
+
+        resolveAllMedia();
+
+        return () => {
+          isCancelled = true;
+          createdUrls.forEach(url => URL.revokeObjectURL(url));
+        };
+      }, [currentCard]);
+
+      const handleGrade = async (rating) => {
+        if (!currentCard) return;
+        const prevCardState = { ...currentCard };
+        setHistory(prev => [...prev, prevCardState]);
+
+        let { interval, easeFactor, reps } = currentCard;
+        if (rating === 1) {
+          reps = 0;
+          interval = 1;
+        } else if (rating === 2) {
+          interval = Math.max(1, Math.floor(interval * 1.2));
+          easeFactor = Math.max(1.3, easeFactor - 0.15);
+        } else if (rating === 3) {
+          reps += 1;
+          interval = reps === 1 ? 1 : reps === 2 ? 3 : Math.floor(interval * easeFactor);
+        } else if (rating === 4) {
+          reps += 1;
+          interval = reps === 1 ? 4 : Math.floor(interval * easeFactor * 1.3);
+          easeFactor += 0.15;
+        }
+
+        const updatedCard = {
+          ...currentCard,
+          interval,
+          easeFactor,
+          reps,
+          dueDate: Date.now() + interval * 86400000
+        };
+
+        await dbUpdateCard(updatedCard);
+        setIsFlipped(false);
+        setIndex(prev => prev + 1);
+        onCardUpdate();
+      };
+
+      const handleUndo = async () => {
+        if (history.length === 0) return;
+        const lastCard = history[history.length - 1];
+        await dbUpdateCard(lastCard);
+        setHistory(prev => prev.slice(0, -1));
+        setIndex(prev => Math.max(0, prev - 1));
+        setIsFlipped(false);
+        onCardUpdate();
+      };
+
+      const handleToggleSuspend = async () => {
+        if (!currentCard) return;
+        const updated = { ...currentCard, suspended: !currentCard.suspended };
+        await dbUpdateCard(updated);
+        onCardUpdate();
+      };
+
+      const handleSaveUserComment = async (val) => {
+        setUserComment(val);
+        await dbSaveComment(currentCard.id, val);
+      };
+
+      if (!currentCard || index >= deckCards.length) {
+        return (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center max-w-lg mx-auto space-y-5">
+            <span className="text-6xl">🎉</span>
+            <h2 className="text-2xl font-black text-slate-100">Review Session Complete!</h2>
+            <p className="text-slate-400 text-sm">
+              All active cards in <span className="text-indigo-300 font-semibold">{deckNode.displayName}</span> have been reviewed.
+            </p>
+            <button 
+              onClick={onBack} 
+              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 font-bold text-white rounded-2xl shadow-xl shadow-indigo-600/30 transition"
+            >
+              Back to Deck Tree
+            </button>
+          </div>
+        );
+      }
+
+      const cardDeckObj = allDecks.find(d => d.id === currentCard.did);
+
+      return (
+        <div className="max-w-5xl mx-auto h-full flex flex-col justify-between p-3 sm:p-6 select-text">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-400 pb-2 flex-shrink-0 select-none">
+            <div className="flex items-center space-x-2 truncate max-w-[50%]">
+              <span className="text-indigo-400 font-bold truncate">{cardDeckObj ? cardDeckObj.name.split("::").pop() : deckNode.displayName}</span>
+              <span className="text-slate-600">•</span>
+              <span>Card {index + 1} of {deckCards.length}</span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => setShowSidePanel(!showSidePanel)} 
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                  showSidePanel ? "bg-indigo-600 text-white border-indigo-500" : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                }`}
+              >
+                ℹ️ Card Info
+              </button>
+              <button 
+                onClick={handleToggleSuspend} 
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                  currentCard.suspended 
+                    ? "bg-amber-500/20 border-amber-500/40 text-amber-300" 
+                    : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                }`}
+              >
+                {currentCard.suspended ? "⚠️ Suspended" : "Suspend"}
+              </button>
+              {history.length > 0 && (
+                <button 
+                  onClick={handleUndo} 
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 rounded-xl text-slate-300 transition"
+                >
+                  ↩ Undo
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 flex gap-4 my-2 min-h-0 relative">
+            <div 
+              key={currentCard.id} 
+              className="flex-1 bg-cardbg border border-slate-800/80 rounded-3xl p-6 sm:p-8 flex flex-col justify-start items-center text-center shadow-2xl overflow-y-auto relative transition-all duration-150"
+            >
+              {currentCard.tags.length > 0 && (
+                <div className="w-full flex flex-wrap gap-1.5 justify-center mb-4">
+                  {currentCard.tags.map(t => (
+                    <span key={t} className="text-[11px] uppercase font-bold tracking-wider px-2.5 py-0.5 bg-slate-900/90 text-slate-300 rounded-full border border-slate-700 flex items-center space-x-1.5">
+                      <span>#{t.split("::").pop()}</span>
+                      <span className="text-[10px] bg-slate-800 text-indigo-300 px-1.5 py-0.2 rounded-full font-mono">
+                        {tagCountMap.get(t) || 1}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div 
+                onClick={() => !isFlipped && setIsFlipped(true)}
+                className="card-content w-full max-w-2xl text-slate-100 text-lg sm:text-xl font-medium leading-relaxed cursor-pointer"
+              >
+                <div dangerouslySetInnerHTML={{ __html: renderedMediaHtml.front }} />
+              </div>
+
+              {isFlipped && (
+                <div className="mt-6 pt-6 border-t border-slate-800/80 w-full max-w-2xl text-left animate-in fade-in duration-150 space-y-5">
+                  <div className="card-content text-slate-100 text-base sm:text-lg leading-relaxed text-center" dangerouslySetInnerHTML={{ __html: renderedMediaHtml.back }} />
+
+                  {renderedExtraFields.length > 0 && (
+                    <div className="pt-4 border-t border-slate-800/60 space-y-2">
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {renderedExtraFields.map((f, idx) => (
+                          <button 
+                            key={idx} 
+                            onClick={() => setActiveExtraField(activeExtraField === idx ? null : idx)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                              activeExtraField === idx 
+                                ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                : 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-indigo-300'
+                            }`}
+                          >
+                            📖 {f.label} {activeExtraField === idx ? '▲' : '▼'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {activeExtraField !== null && renderedExtraFields[activeExtraField] && (
+                        <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl mt-2 card-content text-sm text-slate-300 animate-in fade-in duration-150">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">
+                            {renderedExtraFields[activeExtraField].label}
+                          </h4>
+                          <div dangerouslySetInnerHTML={{ __html: renderedExtraFields[activeExtraField].html }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-slate-800/60">
+                    <button 
+                      onClick={() => setShowCommentBox(!showCommentBox)} 
+                      className="text-xs font-bold text-slate-400 hover:text-slate-200 flex items-center space-x-1"
+                    >
+                      <span>💬 Personal Notes & Mnemonics</span>
+                      <span className="text-[10px]">{showCommentBox ? '▲' : '▼'}</span>
+                    </button>
+
+                    {showCommentBox && (
+                      <textarea 
+                        rows="3"
+                        value={userComment}
+                        onChange={(e) => handleSaveUserComment(e.target.value)}
+                        placeholder="Type personal mnemonics, pearls, or notes here (auto-saved)..."
+                        className="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!isFlipped && (
+                <p 
+                  onClick={() => setIsFlipped(true)}
+                  className="text-xs text-slate-500 mt-8 tracking-widest uppercase font-bold cursor-pointer"
+                >
+                  Tap card to reveal answer
+                </p>
+              )}
+            </div>
+
+            {showSidePanel && (
+              <div className="w-64 bg-cardbg border border-slate-800/80 rounded-3xl p-5 shadow-2xl flex flex-col justify-between text-xs overflow-y-auto animate-in slide-in-from-right duration-200">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <h3 className="font-bold text-slate-200 uppercase tracking-wider text-[11px]">Card Metadata</h3>
+                    <button onClick={() => setShowSidePanel(false)} className="text-slate-500 hover:text-slate-300">✕</button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Origin Subdeck</p>
+                      <p className="font-semibold text-slate-200 truncate">{cardDeckObj ? cardDeckObj.name : deckNode.fullName}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Card ID / Note ID</p>
+                      <p className="font-mono text-slate-300 text-[11px]">{currentCard.id} / {currentCard.nid}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Repetitions & Ease</p>
+                      <p className="font-semibold text-emerald-400">{currentCard.reps} reps • {(currentCard.easeFactor * 100).toFixed(0)}% Ease</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 text-[10px] uppercase font-bold">Current Interval</p>
+                      <p className="font-semibold text-slate-200">{currentCard.interval} days</p>
+                    </div>
+                  </div>
+
+                  {currentCard.tags.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800">
+                      <p className="text-slate-500 text-[10px] uppercase font-bold mb-1.5">Attached Tags & Total Cards</p>
+                      <div className="space-y-1">
+                        {currentCard.tags.map(t => (
+                          <div key={t} className="flex justify-between items-center text-[11px] bg-slate-900/60 p-1.5 rounded-lg border border-slate-800">
+                            <span className="truncate pr-1 text-slate-300 font-medium">#{t.split("::").pop()}</span>
+                            <span className="text-indigo-400 font-bold font-mono">{tagCountMap.get(t) || 1}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-slate-500 text-center mt-4">Select text anytime to highlight</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-shrink-0 pt-2 safe-bottom-margin max-w-2xl mx-auto w-full select-none">
+            {!isFlipped ? (
+              <button 
+                onClick={() => setIsFlipped(true)} 
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 font-bold text-white text-base rounded-2xl shadow-xl shadow-indigo-600/30 active:scale-[0.98] transition"
+              >
+                Show Answer
+              </button>
+            ) : (
+              <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
+                <button 
+                  onClick={() => handleGrade(1)} 
+                  className="py-3.5 bg-red-950/60 hover:bg-red-900 border border-red-800/60 text-red-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                >
+                  <span>Again</span>
+                  <span className="text-[10px] font-normal opacity-75 mt-0.5">&lt;10m</span>
+                </button>
+                <button 
+                  onClick={() => handleGrade(2)} 
+                  className="py-3.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-800/60 text-amber-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                >
+                  <span>Hard</span>
+                  <span className="text-[10px] font-normal opacity-75 mt-0.5">{Math.max(1, Math.floor(currentCard.interval * 1.2))}d</span>
+                </button>
+                <button 
+                  onClick={() => handleGrade(3)} 
+                  className="py-3.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-800/60 text-emerald-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                >
+                  <span>Good</span>
+                  <span className="text-[10px] font-normal opacity-75 mt-0.5">{Math.max(1, Math.floor(currentCard.interval * currentCard.easeFactor))}d</span>
+                </button>
+                <button 
+                  onClick={() => handleGrade(4)} 
+                  className="py-3.5 bg-blue-950/60 hover:bg-blue-900 border border-blue-800/60 text-blue-300 font-bold rounded-2xl text-xs sm:text-sm flex flex-col items-center active:scale-95 transition"
+                >
+                  <span>Easy</span>
+                  <span className="text-[10px] font-normal opacity-75 mt-0.5">{Math.max(4, Math.floor(currentCard.interval * currentCard.easeFactor * 1.3))}d</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // --- Fast Atomic Tag & Suspension Manager ---
+    function ManagerView({ deckNode, allCards, onUpdate, onStartCustomStudy }) {
+      const eligibleDeckIds = useMemo(() => Array.from(deckNode.allDeckIds), [deckNode]);
+      const deckCards = useMemo(() => allCards.filter(c => eligibleDeckIds.includes(c.did)), [allCards, eligibleDeckIds]);
+      
+      const tagTree = useMemo(() => buildTagTree(deckCards), [deckCards]);
+      const rootTagNodes = Object.values(tagTree);
+
+      const [selectedTags, setSelectedTags] = useState([]);
+      const [customIncludeSuspended, setCustomIncludeSuspended] = useState(true);
+      const [searchTag, setSearchTag] = useState("");
+      const [actionStatus, setActionStatus] = useState("");
+
+      // Atomic batch update by tag
+      const handleBatchSuspend = async (fullTag, suspendState) => {
+        setActionStatus(`Updating #${fullTag}...`);
+        const cardsToUpdate = [];
+        deckCards.forEach(c => {
+          if (c.tags.some(t => t === fullTag || t.startsWith(fullTag + "::"))) {
+            cardsToUpdate.push({ ...c, suspended: suspendState });
+          }
+        });
+
+        await dbBatchUpdateCards(cardsToUpdate);
+        await onUpdate();
+        setActionStatus(`Updated ${cardsToUpdate.length} cards in #${fullTag}`);
+        setTimeout(() => setActionStatus(""), 2500);
+      };
+
+      // Atomic batch update for all cards in branch
+      const handleBatchSuspendAll = async (suspendState) => {
+        setActionStatus(suspendState ? "Suspending all cards in branch..." : "Unsuspending all cards in branch...");
+        const cardsToUpdate = deckCards.map(c => ({ ...c, suspended: suspendState }));
+        
+        await dbBatchUpdateCards(cardsToUpdate);
+        await onUpdate();
+        setActionStatus(`${suspendState ? "Suspended" : "Unsuspended"} all ${cardsToUpdate.length} cards!`);
+        setTimeout(() => setActionStatus(""), 2500);
+      };
+
+      const handleToggleSelectTag = (fullTag) => {
+        setSelectedTags(prev => 
+          prev.includes(fullTag) ? prev.filter(t => t !== fullTag) : [...prev, fullTag]
+        );
+      };
+
+      const filteredRootTags = useMemo(() => {
+        if (!searchTag.trim()) return rootTagNodes;
+        const q = searchTag.toLowerCase();
+        return rootTagNodes.filter(node => node.fullTag.toLowerCase().includes(q));
+      }, [rootTagNodes, searchTag]);
+
+      return (
+        <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-100">{deckNode.displayName}</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Hierarchical Tag & Suspension Manager</p>
+              {actionStatus && (
+                <p className="text-xs font-bold text-indigo-400 mt-1 animate-pulse">{actionStatus}</p>
+              )}
+            </div>
+            
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => handleBatchSuspendAll(true)} 
+                className="px-4 py-2 bg-amber-950/80 hover:bg-amber-900 border border-amber-700 text-amber-300 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+              >
+                ⚠️ Suspend All in Branch ({deckCards.length})
+              </button>
+              <button 
+                onClick={() => handleBatchSuspendAll(false)} 
+                className="px-4 py-2 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700 text-emerald-300 rounded-xl text-xs font-bold transition shadow-sm active:scale-95"
+              >
+                ✨ Unsuspend All
+              </button>
+            </div>
+          </div>
+
+          {selectedTags.length > 0 && (
+            <div className="p-5 bg-indigo-950/40 border border-indigo-500/50 rounded-2xl space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
+                  Targeted Tag Study ({selectedTags.length} tag branches selected)
+                </p>
+                <button onClick={() => setSelectedTags([])} className="text-xs text-indigo-400 underline">
+                  Clear
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2 text-sm">
+                <input 
+                  type="checkbox" 
+                  id="include-susp" 
+                  checked={customIncludeSuspended} 
+                  onChange={(e) => setCustomIncludeSuspended(e.target.checked)}
+                  className="rounded text-indigo-600 focus:ring-0"
+                />
+                <label htmlFor="include-susp" className="text-slate-300 text-xs cursor-pointer">
+                  Include suspended cards during this targeted study session
+                </label>
+              </div>
+
+              <button 
+                onClick={() => onStartCustomStudy(selectedTags, customIncludeSuspended)}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-600/30 transition active:scale-[0.99]"
+              >
+                Study Selected Tags →
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Hierarchical Tag Tree</h3>
+              <input 
+                type="text" 
+                placeholder="Search tag hierarchy..." 
+                value={searchTag}
+                onChange={(e) => setSearchTag(e.target.value)}
+                className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-200 placeholder-slate-500 w-52"
+              />
+            </div>
+
+            {filteredRootTags.length === 0 ? (
+              <div className="bg-cardbg/40 border border-slate-800 rounded-xl p-6 text-center">
+                <p className="text-sm text-slate-500 italic">No tags found in this deck.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredRootTags.map(node => (
+                  <TagTreeNode 
+                    key={node.fullTag} 
+                    node={node} 
+                    onBatchSuspend={handleBatchSuspend}
+                    selectedTags={selectedTags}
+                    onToggleSelect={handleToggleSelectTag}
+                    depth={0}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
