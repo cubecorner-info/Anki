@@ -152,7 +152,6 @@
       });
     }
 
-    // High-performance single atomic transaction for batch updates
     async function dbBatchUpdateCards(cardsToUpdate) {
       if (!cardsToUpdate || cardsToUpdate.length === 0) return;
       const db = await openDB();
@@ -213,7 +212,6 @@
       });
     }
 
-    // --- Parser ---
     async function parseApkg(file) {
       const zip = await JSZip.loadAsync(file);
       let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
@@ -223,7 +221,6 @@
       const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
       const db = new SQL.Database(dbBuffer);
 
-      // Media
       const mediaJsonFile = zip.file("media");
       const mediaMap = mediaJsonFile ? JSON.parse(await mediaJsonFile.async("text")) : {};
       const mediaItems = [];
@@ -236,7 +233,6 @@
       }
       if (mediaItems.length > 0) await dbPutBatch("media", mediaItems);
 
-      // Decks & Field model labels
       const colRes = db.exec("SELECT decks, models FROM col");
       const decksJson = JSON.parse(colRes[0].values[0][0]);
       const modelsJson = JSON.parse(colRes[0].values[0][1]);
@@ -254,7 +250,6 @@
         }
       }
 
-      // Notes
       const notesRes = db.exec("SELECT id, mid, flds, tags FROM notes");
       const notesMap = new Map();
       if (notesRes.length > 0) {
@@ -267,7 +262,6 @@
         });
       }
 
-      // Cards
       const cardsRes = db.exec("SELECT id, nid, did, ord, type, queue, factor, reps, ivl, due FROM cards");
       const cards = [];
       if (cardsRes.length > 0) {
@@ -416,9 +410,9 @@
       return root.children;
     }
 
-    // --- App Component ---
+    // --- Main App ---
     function App() {
-      const [view, setView] = useState("deckList");
+      const [view, setView] = useState("deckList"); // 'deckList' | 'tagExplorer' | 'study' | 'manager'
       const [decks, setDecks] = useState([]);
       const [cards, setCards] = useState([]);
       const [selectedDeckNode, setSelectedDeckNode] = useState(null);
@@ -455,6 +449,7 @@
 
       return (
         <div className="flex flex-col h-full w-full bg-slate-950 text-slate-100 relative">
+          {/* Header */}
           <header className="px-6 py-3.5 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 flex items-center justify-between flex-shrink-0 z-10">
             <div className="flex items-center space-x-3">
               <span className="text-2xl">⚡</span>
@@ -464,17 +459,18 @@
               </div>
             </div>
 
-            {view !== "deckList" && (
+            {(view === "study" || view === "manager") && (
               <button 
                 onClick={() => { setView("deckList"); loadData(); }} 
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm"
               >
                 <span>←</span>
-                <span>Deck Tree</span>
+                <span>Decks</span>
               </button>
             )}
           </header>
 
+          {/* Main View Area */}
           <main className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
@@ -506,6 +502,23 @@
               />
             )}
 
+            {!loading && view === "tagExplorer" && (
+              <GlobalTagExplorerView 
+                allCards={cards}
+                allDecks={decks}
+                onStartStudy={(tags) => {
+                  setSelectedDeckNode({
+                    displayName: tags[0].split("::").pop(),
+                    fullName: tags[0],
+                    allDeckIds: new Set(decks.map(d => d.id))
+                  });
+                  setCustomStudyTags(tags);
+                  setIncludeSuspendedInCustom(false);
+                  setView("study");
+                }}
+              />
+            )}
+
             {!loading && view === "study" && selectedDeckNode && (
               <StudyView 
                 deckNode={selectedDeckNode} 
@@ -531,6 +544,146 @@
               />
             )}
           </main>
+
+          {/* Bottom Navigation Bar */}
+          {(view === "deckList" || view === "tagExplorer") && (
+            <nav className="flex-shrink-0 bg-slate-900 border-t border-slate-800 px-6 py-2 flex justify-around items-center safe-bottom-margin z-10">
+              <button 
+                onClick={() => setView("deckList")}
+                className={`flex flex-col items-center space-y-1 py-1 px-4 rounded-xl transition ${
+                  view === "deckList" ? "text-indigo-400 font-bold" : "text-slate-500 hover:text-slate-300 font-medium"
+                }`}
+              >
+                <span className="text-lg">📁</span>
+                <span className="text-[11px]">Decks</span>
+              </button>
+
+              <button 
+                onClick={() => setView("tagExplorer")}
+                className={`flex flex-col items-center space-y-1 py-1 px-4 rounded-xl transition ${
+                  view === "tagExplorer" ? "text-indigo-400 font-bold" : "text-slate-500 hover:text-slate-300 font-medium"
+                }`}
+              >
+                <span className="text-lg">🏷️</span>
+                <span className="text-[11px]">All Tags</span>
+              </button>
+            </nav>
+          )}
+        </div>
+      );
+    }
+
+    // --- Global Tag Explorer View ---
+    function GlobalTagExplorerView({ allCards, allDecks, onStartStudy }) {
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedTag, setSelectedTag] = useState(null);
+
+      const globalTagMap = useMemo(() => {
+        const map = new Map();
+        allCards.forEach(card => {
+          card.tags.forEach(tag => {
+            if (!map.has(tag)) {
+              map.set(tag, {
+                tag,
+                displayName: tag.split("::").pop(),
+                cards: [],
+                activeCount: 0,
+                suspendedCount: 0
+              });
+            }
+            const entry = map.get(tag);
+            entry.cards.push(card);
+            if (card.suspended) entry.suspendedCount++;
+            else entry.activeCount++;
+          });
+        });
+        return Array.from(map.values()).sort((a, b) => b.cards.length - a.cards.length);
+      }, [allCards]);
+
+      const filteredTags = useMemo(() => {
+        if (!searchQuery.trim()) return globalTagMap;
+        const q = searchQuery.toLowerCase();
+        return globalTagMap.filter(item => item.tag.toLowerCase().includes(q));
+      }, [globalTagMap, searchQuery]);
+
+      if (selectedTag) {
+        const tagData = globalTagMap.find(t => t.tag === selectedTag);
+        return (
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 pb-20">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <button 
+                onClick={() => setSelectedTag(null)}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold"
+              >
+                ← All Tags
+              </button>
+              <button 
+                onClick={() => onStartStudy([selectedTag])}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md"
+              >
+                Study #{tagData?.displayName} ({tagData?.activeCount} cards) →
+              </button>
+            </div>
+
+            <div>
+              <h2 className="text-base font-bold text-indigo-400 break-all">#{selectedTag}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{tagData?.cards.length} total cards across collection</p>
+            </div>
+
+            <div className="space-y-2">
+              {tagData?.cards.map((card, i) => (
+                <div key={card.id} className="p-3.5 bg-cardbg border border-slate-800 rounded-xl text-xs space-y-1.5">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span className="font-mono text-[10px]">#{i + 1} • Card ID: {card.id}</span>
+                    <span className={card.suspended ? "text-amber-400 font-medium" : "text-emerald-400 font-medium"}>
+                      {card.suspended ? "Suspended" : "Active"}
+                    </span>
+                  </div>
+                  <div 
+                    className="text-slate-200 line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: card.fields[0] || "No front text" }} 
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 pb-24">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">All Collection Tags</h2>
+              <p className="text-xs text-slate-500">Search and drill down into any card by subject tag</p>
+            </div>
+            <input 
+              type="text"
+              placeholder="Search all tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-full sm:w-64"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {filteredTags.map(item => (
+              <div 
+                key={item.tag} 
+                onClick={() => setSelectedTag(item.tag)}
+                className="p-3.5 bg-cardbg hover:bg-slate-800/80 border border-slate-800 rounded-2xl cursor-pointer flex items-center justify-between transition shadow-sm"
+              >
+                <div className="min-w-0 pr-2">
+                  <p className="font-bold text-slate-200 text-sm truncate">#{item.displayName}</p>
+                  <p className="text-[11px] text-slate-500 truncate max-w-xs">{item.tag}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-xs font-bold text-indigo-400 font-mono">{item.cards.length}</span>
+                  <p className="text-[10px] text-slate-500">cards</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -618,7 +771,7 @@
       );
     }
 
-    // --- Deck Tree Component ---
+    // --- Deck Tree Node Component ---
     function DeckTreeNode({ node, onSelectDeck, onOpenManager, onDeleteDeck, depth = 0 }) {
       const [isOpen, setIsOpen] = useState(true);
       const childNodes = Object.values(node.children);
@@ -1203,7 +1356,7 @@
       );
     }
 
-    // --- Fast Atomic Tag & Suspension Manager ---
+    // --- Tag Manager View ---
     function ManagerView({ deckNode, allCards, onUpdate, onStartCustomStudy }) {
       const eligibleDeckIds = useMemo(() => Array.from(deckNode.allDeckIds), [deckNode]);
       const deckCards = useMemo(() => allCards.filter(c => eligibleDeckIds.includes(c.did)), [allCards, eligibleDeckIds]);
@@ -1216,7 +1369,6 @@
       const [searchTag, setSearchTag] = useState("");
       const [actionStatus, setActionStatus] = useState("");
 
-      // Atomic batch update by tag
       const handleBatchSuspend = async (fullTag, suspendState) => {
         setActionStatus(`Updating #${fullTag}...`);
         const cardsToUpdate = [];
@@ -1232,7 +1384,6 @@
         setTimeout(() => setActionStatus(""), 2500);
       };
 
-      // Atomic batch update for all cards in branch
       const handleBatchSuspendAll = async (suspendState) => {
         setActionStatus(suspendState ? "Suspending all cards in branch..." : "Unsuspending all cards in branch...");
         const cardsToUpdate = deckCards.map(c => ({ ...c, suspended: suspendState }));
