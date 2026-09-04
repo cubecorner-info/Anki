@@ -8,12 +8,10 @@
   <meta name="theme-color" content="#030712" />
   <title>AnkiFlow</title>
 
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -29,7 +27,6 @@
     }
   </script>
 
-  <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -65,10 +62,11 @@
     .cloze-reveal {
       color: #34d399;
       font-weight: 800;
-      background: rgba(52, 211, 153, 0.15);
-      border: 1px solid rgba(52, 211, 153, 0.4);
+      background: rgba(52, 211, 153, 0.18);
+      border: 1px solid rgba(52, 211, 153, 0.45);
       padding: 2px 8px;
       border-radius: 6px;
+      display: inline-block;
     }
     .card-content img {
       max-width: 100%;
@@ -279,6 +277,7 @@
       await dbPutBatch("cards", cards);
     }
 
+    // Fixed Cloze Deletion Engine: handles hints, answers, and inactive clozes
     function renderCardField(html, isFront = true, clozeOrd = 0) {
       if (!html) return "";
       let processed = html;
@@ -286,15 +285,20 @@
       processed = processed.replace(clozeRegex, (match, num, text, hint) => {
         const isCurrentCloze = parseInt(num) === (clozeOrd + 1);
         if (isFront) {
-          return isCurrentCloze ? `<span class="cloze-bracket">${hint || "..."}</span>` : text;
+          if (isCurrentCloze) {
+            return `<span class="cloze-bracket">[${hint || "..."}]</span>`;
+          }
+          return text;
         } else {
-          return isCurrentCloze ? `<span class="cloze-reveal">${text}</span>` : text;
+          if (isCurrentCloze) {
+            return `<span class="cloze-reveal">${text}</span>`;
+          }
+          return text;
         }
       });
       return processed;
     }
 
-    // --- Deck Hierarchy Tree ---
     function buildCleanDeckTree(decks, cards) {
       const root = { children: {} };
       decks.forEach(d => {
@@ -348,7 +352,6 @@
       return root.children;
     }
 
-    // --- Tag Hierarchy Tree for Browse Screen ---
     function buildTagTree(allCards) {
       const root = { children: {} };
       allCards.forEach(card => {
@@ -388,12 +391,11 @@
       return root.children;
     }
 
-    // --- Main App Component ---
     function App() {
-      const [view, setView] = useState("decks"); // 'decks' | 'browse' | 'study'
+      const [view, setView] = useState("decks");
       const [decks, setDecks] = useState([]);
       const [cards, setCards] = useState([]);
-      const [selectedDeckNode, setSelectedDeckNode] = useState(null);
+      const [studyTarget, setStudyTarget] = useState(null);
       const [loading, setLoading] = useState(false);
       const [statusMsg, setStatusMsg] = useState("");
 
@@ -423,16 +425,34 @@
         }
       };
 
+      const startDeckStudy = (node) => {
+        const deckIds = Array.from(node.allDeckIds);
+        setStudyTarget({
+          type: "deck",
+          title: node.displayName,
+          filterFn: (c) => deckIds.includes(c.did) && !c.suspended
+        });
+        setView("study");
+      };
+
+      const startTagStudy = (tag, activeCount) => {
+        setStudyTarget({
+          type: "tag",
+          title: `#${tag.split("::").pop()}`,
+          filterFn: (c) => c.tags.some(t => t === tag || t.startsWith(tag + "::")) && !c.suspended
+        });
+        setView("study");
+      };
+
       return (
         <div className="flex flex-col h-full w-full relative">
-          {/* Header */}
           <header className="px-6 py-3.5 bg-gray-950/80 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between flex-shrink-0 z-20">
             <div className="flex items-center space-x-3">
               <span className="text-2xl">⚡</span>
               <div>
                 <h1 className="text-base font-black tracking-tight text-white">AnkiFlow</h1>
                 <p className="text-[10px] font-mono uppercase text-violet-400 font-semibold tracking-wider">
-                  {view === "decks" ? "Decks" : view === "browse" ? "Card Browser" : "Review"}
+                  {view === "decks" ? "Decks" : view === "browse" ? "Card Browser" : "Review Session"}
                 </p>
               </div>
             </div>
@@ -442,12 +462,11 @@
                 onClick={() => { setView("decks"); loadData(); }} 
                 className="px-3.5 py-1.5 bg-white/[0.06] hover:bg-white/[0.1] active:scale-95 border border-white/[0.1] rounded-xl text-xs font-bold text-slate-200"
               >
-                ← Decks
+                ← Exit Study
               </button>
             )}
           </header>
 
-          {/* Main Views */}
           <main className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
@@ -460,7 +479,7 @@
               <DecksScreen 
                 decks={decks} 
                 cards={cards} 
-                onSelectDeck={(node) => { setSelectedDeckNode(node); setView("study"); }}
+                onSelectDeck={startDeckStudy}
                 onUpload={handleFileUpload}
                 onDeleteDeck={async (node) => {
                   if (confirm(`Delete "${node.displayName}" and all its subdecks?`)) {
@@ -476,21 +495,20 @@
                 allCards={cards}
                 allDecks={decks}
                 onUpdate={loadData}
+                onStartTagStudy={startTagStudy}
               />
             )}
 
-            {!loading && view === "study" && selectedDeckNode && (
+            {!loading && view === "study" && studyTarget && (
               <StudyScreen 
-                deckNode={selectedDeckNode}
+                studyTarget={studyTarget}
                 allCards={cards}
-                allDecks={decks}
                 onCardUpdate={loadData}
                 onBack={() => { setView("decks"); loadData(); }}
               />
             )}
           </main>
 
-          {/* Anki Dock: Home (Decks) and Browse */}
           {(view === "decks" || view === "browse") && (
             <div className="fixed bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none safe-bottom-margin">
               <nav className="pointer-events-auto bg-gray-950/90 backdrop-blur-2xl border border-white/10 p-1 rounded-full flex items-center shadow-2xl space-x-1">
@@ -511,7 +529,7 @@
                   }`}
                 >
                   <span>🔍</span>
-                  <span>Browse & Suspend</span>
+                  <span>Browse & Tags</span>
                 </button>
               </nav>
             </div>
@@ -520,7 +538,6 @@
       );
     }
 
-    // --- Anki Clean Decks Screen (No Suspend clutter) ---
     function DeckTreeNode({ node, onSelectDeck, onDeleteDeck, depth = 0 }) {
       const [isOpen, setIsOpen] = useState(true);
       const childNodes = Object.values(node.children);
@@ -586,7 +603,6 @@
 
       return (
         <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6 pb-28">
-          {/* Quick Import Header */}
           <div className="border border-dashed border-white/[0.15] bg-white/[0.02] hover:border-violet-500/50 rounded-2xl p-6 text-center cursor-pointer">
             <input type="file" accept=".apkg" onChange={onUpload} id="apkg-input" className="hidden" />
             <label htmlFor="apkg-input" className="cursor-pointer space-y-1 block">
@@ -596,9 +612,8 @@
             </label>
           </div>
 
-          {/* Decks Tree */}
           <div className="space-y-2">
-            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 px-1">Decks</h2>
+            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400 px-1">Study by Deck</h2>
             {rootNodes.length === 0 ? (
               <p className="text-xs text-slate-600 italic px-1">No decks loaded yet.</p>
             ) : (
@@ -617,7 +632,6 @@
       );
     }
 
-    // --- Anki "Browse" Screen (Dedicated Tag & Suspension Manager) ---
     function TagBrowseTreeNode({ node, onSelectTag, activeTag, depth = 0 }) {
       const [isOpen, setIsOpen] = useState(depth === 0);
       const childNodes = Object.values(node.children);
@@ -669,7 +683,7 @@
       );
     }
 
-    function BrowseScreen({ allCards, allDecks, onUpdate }) {
+    function BrowseScreen({ allCards, allDecks, onUpdate, onStartTagStudy }) {
       const [selectedTag, setSelectedTag] = useState(null);
       const [tagFilter, setTagFilter] = useState("");
       const [actionMsg, setActionMsg] = useState("");
@@ -682,13 +696,13 @@
         return rootTagNodes.filter(n => n.fullTag.toLowerCase().includes(tagFilter.toLowerCase()));
       }, [rootTagNodes, tagFilter]);
 
-      // Cards matching currently selected tag
       const matchedCards = useMemo(() => {
         if (!selectedTag) return [];
         return allCards.filter(c => c.tags.some(t => t === selectedTag || t.startsWith(selectedTag + "::")));
       }, [allCards, selectedTag]);
 
-      // Atomic Suspend/Unsuspend
+      const activeMatchCount = matchedCards.filter(c => !c.suspended).length;
+
       const handleBatchToggleSuspend = async (suspendState) => {
         if (matchedCards.length === 0) return;
         setActionMsg(suspendState ? "Suspending cards..." : "Unsuspending cards...");
@@ -706,11 +720,10 @@
 
       return (
         <div className="max-w-6xl mx-auto h-full flex flex-col md:flex-row pb-24 p-4 sm:p-6 gap-4 select-none">
-          {/* Left / Top: Tags Tree */}
           <div className="w-full md:w-80 glass-card rounded-2xl p-4 flex flex-col flex-shrink-0 max-h-72 md:max-h-full overflow-hidden">
             <div className="pb-3 border-b border-white/[0.08] space-y-2">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Tags</h3>
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Tag Tree</h3>
                 {actionMsg && <span className="text-[10px] font-mono text-cyan-400">{actionMsg}</span>}
               </div>
               <input 
@@ -739,7 +752,6 @@
             </div>
           </div>
 
-          {/* Right / Bottom: Matching Card Table & Action Header */}
           <div className="flex-1 glass-card rounded-2xl p-4 flex flex-col overflow-hidden">
             {selectedTag ? (
               <>
@@ -747,17 +759,24 @@
                   <div>
                     <h3 className="text-xs font-mono font-bold text-violet-400 break-all">#{selectedTag}</h3>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {matchedCards.filter(c => !c.suspended).length} active • {matchedCards.filter(c => c.suspended).length} suspended
+                      {activeMatchCount} active • {matchedCards.filter(c => c.suspended).length} suspended
                     </p>
                   </div>
 
-                  {/* Anki Browser Style Suspend Controls */}
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {activeMatchCount > 0 && (
+                      <button 
+                        onClick={() => onStartTagStudy(selectedTag, activeMatchCount)}
+                        className="px-4 py-1.5 bg-gradient-to-r from-violet-600 to-pink-600 hover:opacity-90 text-white font-bold rounded-xl text-xs shadow-md active:scale-95 transition"
+                      >
+                        ⚡ Study This Tag ({activeMatchCount})
+                      </button>
+                    )}
                     <button 
                       onClick={() => handleBatchToggleSuspend(true)}
                       className="px-3 py-1.5 bg-amber-950/50 hover:bg-amber-900 border border-amber-500/30 text-amber-300 font-bold rounded-xl text-xs transition"
                     >
-                      Suspend All ({matchedCards.length})
+                      Suspend All
                     </button>
                     <button 
                       onClick={() => handleBatchToggleSuspend(false)}
@@ -796,7 +815,7 @@
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-500 text-xs">
                 <span className="text-3xl mb-2">👈</span>
-                <p>Select any tag from the hierarchy on the left to view and suspend/unsuspend cards.</p>
+                <p>Pick a tag on the left to review its cards, suspend/unsuspend them, or launch a tag-specific study sprint.</p>
               </div>
             )}
           </div>
@@ -804,20 +823,17 @@
       );
     }
 
-    // --- Study Screen Component ---
-    function StudyScreen({ deckNode, allCards, allDecks, onCardUpdate, onBack }) {
-      const eligibleDeckIds = useMemo(() => Array.from(deckNode.allDeckIds), [deckNode]);
-
-      // Only study cards belonging to this deck/sub-deck that are NOT suspended
-      const deckCards = useMemo(() => {
-        return allCards.filter(c => eligibleDeckIds.includes(c.did) && !c.suspended);
-      }, [allCards, eligibleDeckIds]);
+    // --- Study Screen Component (Fixed Cloze Reveal Engine) ---
+    function StudyScreen({ studyTarget, allCards, onCardUpdate, onBack }) {
+      const activeCards = useMemo(() => {
+        return allCards.filter(studyTarget.filterFn);
+      }, [allCards, studyTarget]);
 
       const [index, setIndex] = useState(0);
       const [isFlipped, setIsFlipped] = useState(false);
       const [history, setHistory] = useState([]);
       const [renderedHtml, setRenderedHtml] = useState({ front: "", back: "" });
-      const currentCard = deckCards[index];
+      const currentCard = activeCards[index];
 
       useEffect(() => {
         if (!currentCard) return;
@@ -827,9 +843,10 @@
         async function resolveMedia() {
           const frontRaw = currentCard.fields[0] || "";
           const backRaw = currentCard.fields[1] || "";
+          const isCloze = /\{\{c\d+::/i.test(frontRaw);
 
-          async function replaceUrls(html, isFront) {
-            let res = renderCardField(html, isFront, currentCard.ord);
+          async function replaceUrls(html) {
+            let res = html;
             const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
             const matches = [...res.matchAll(imgRegex)];
             for (const m of matches) {
@@ -844,9 +861,28 @@
             return res;
           }
 
-          const front = await replaceUrls(frontRaw, true);
-          const back = await replaceUrls(backRaw, false);
-          if (!isCancelled) setRenderedHtml({ front, back });
+          let finalFront = "";
+          let finalBack = "";
+
+          if (isCloze) {
+            // FRONT: Render Field 0 with masked cloze bracket [...]
+            const maskedFront = renderCardField(frontRaw, true, currentCard.ord);
+            finalFront = await replaceUrls(maskedFront);
+
+            // BACK: Render Field 0 with target cloze filled in and highlighted, followed by Extra field (Field 1)
+            const revealedFront = renderCardField(frontRaw, false, currentCard.ord);
+            let backCombined = `<div class="mb-4">${revealedFront}</div>`;
+            if (backRaw.trim().length > 0) {
+              backCombined += `<div class="pt-4 border-t border-white/[0.08] text-slate-300 text-sm leading-relaxed">${backRaw}</div>`;
+            }
+            finalBack = await replaceUrls(backCombined);
+          } else {
+            // Standard Basic Card
+            finalFront = await replaceUrls(renderCardField(frontRaw, true, currentCard.ord));
+            finalBack = await replaceUrls(renderCardField(backRaw, false, currentCard.ord));
+          }
+
+          if (!isCancelled) setRenderedHtml({ front: finalFront, back: finalBack });
         }
 
         resolveMedia();
@@ -899,14 +935,14 @@
         onCardUpdate();
       };
 
-      if (!currentCard || index >= deckCards.length) {
+      if (!currentCard || index >= activeCards.length) {
         return (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center max-w-md mx-auto space-y-4">
             <span className="text-5xl">🎉</span>
-            <h2 className="text-xl font-bold text-white">Review Finished</h2>
-            <p className="text-xs text-slate-400">All unsuspended cards in this sub-deck have been completed.</p>
+            <h2 className="text-xl font-bold text-white">Session Completed</h2>
+            <p className="text-xs text-slate-400">All unsuspended cards in {studyTarget.title} have been reviewed.</p>
             <button onClick={onBack} className="px-5 py-2.5 bg-violet-600 font-bold text-white rounded-xl text-xs">
-              Back to Decks
+              Back to Overview
             </button>
           </div>
         );
@@ -915,9 +951,9 @@
       return (
         <div className="max-w-4xl mx-auto h-full flex flex-col justify-between p-4 sm:p-6 select-none">
           <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-2">
-            <span className="font-bold text-violet-400 truncate max-w-[60%]">{deckNode.displayName}</span>
+            <span className="font-bold text-violet-400 truncate max-w-[60%]">{studyTarget.title}</span>
             <div className="flex items-center space-x-2">
-              <span>{index + 1} / {deckCards.length}</span>
+              <span>{index + 1} / {activeCards.length}</span>
               {history.length > 0 && (
                 <button onClick={handleUndo} className="px-2 py-0.5 bg-white/[0.06] rounded text-[11px]">↩ Undo</button>
               )}
@@ -929,14 +965,15 @@
             className="flex-1 glass-card rounded-3xl p-6 sm:p-10 flex flex-col justify-center items-center text-center overflow-y-auto my-2 cursor-pointer relative"
           >
             <div className="card-content w-full max-w-2xl text-slate-100 text-lg leading-relaxed">
-              <div dangerouslySetInnerHTML={{ __html: renderedHtml.front }} />
-              {isFlipped && (
-                <div className="mt-8 pt-8 border-t border-white/[0.08] w-full animate-in fade-in">
+              {!isFlipped ? (
+                <div dangerouslySetInnerHTML={{ __html: renderedHtml.front }} />
+              ) : (
+                <div className="animate-in fade-in duration-150 text-left sm:text-center">
                   <div dangerouslySetInnerHTML={{ __html: renderedHtml.back }} />
                 </div>
               )}
             </div>
-            {!isFlipped && <p className="text-[10px] font-mono text-slate-500 mt-8">[ Tap to reveal ]</p>}
+            {!isFlipped && <p className="text-[10px] font-mono text-slate-500 mt-8">[ Tap to reveal answer ]</p>}
           </div>
 
           <div className="flex-shrink-0 pt-2 safe-bottom-margin max-w-xl mx-auto w-full">
