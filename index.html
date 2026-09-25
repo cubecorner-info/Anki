@@ -444,6 +444,138 @@
       return root.children;
     }
 
+    // --- Study Screen Component ---
+    function StudyScreen({ studyTarget, allCards, onCardUpdate, onBack }) {
+      const targetCards = useMemo(() => {
+        return allCards.filter(studyTarget.filterFn);
+      }, [allCards, studyTarget]);
+
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [showAnswer, setShowAnswer] = useState(false);
+
+      const currentCard = targetCards[currentIndex];
+
+      if (!currentCard) {
+        return (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
+            <span className="text-4xl">🎉</span>
+            <h2 className="text-lg font-bold text-slate-100">Deck Complete!</h2>
+            <p className="text-slate-400 text-xs max-w-sm">
+              You've reviewed all available cards for this target session.
+            </p>
+            <button 
+              onClick={onBack}
+              className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold shadow"
+            >
+              Return to Decks
+            </button>
+          </div>
+        );
+      }
+
+      const frontText = currentCard.fields?.[0] || "";
+      const backText = currentCard.fields?.[1] || "";
+
+      const handleRating = async (rating) => {
+        // Simple SM-2 spacing algorithm simulation
+        let newInterval = currentCard.interval || 0;
+        let newEase = currentCard.easeFactor || 2.5;
+        let newReps = (currentCard.reps || 0) + 1;
+
+        if (rating === 1) { // Again
+          newInterval = 0;
+          newEase = Math.max(1.3, newEase - 0.2);
+        } else if (rating === 2) { // Hard
+          newInterval = newInterval === 0 ? 1 : newInterval * 1.2;
+        } else if (rating === 3) { // Good
+          newInterval = newInterval === 0 ? 1 : newInterval * newEase;
+        } else if (rating === 4) { // Easy
+          newInterval = newInterval === 0 ? 4 : newInterval * newEase * 1.3;
+          newEase += 0.15;
+        }
+
+        const updated = {
+          ...currentCard,
+          reps: newReps,
+          interval: Math.round(newInterval),
+          easeFactor: newEase,
+          dueDate: Date.now() + Math.round(newInterval) * 86400000
+        };
+
+        await dbUpdateCard(updated);
+        setShowAnswer(false);
+        if (currentIndex < targetCards.length - 1) {
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          onCardUpdate();
+        }
+      };
+
+      return (
+        <div className="max-w-2xl mx-auto h-full flex flex-col p-4 sm:p-6 justify-between">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
+            <span>{studyTarget.title}</span>
+            <span className="font-mono">{currentIndex + 1} / {targetCards.length}</span>
+          </div>
+
+          <div className="flex-1 panel-card rounded-2xl p-6 flex flex-col justify-center items-center text-center overflow-y-auto mb-6 shadow-xl">
+            <div 
+              className="card-content text-slate-100 text-base sm:text-lg leading-relaxed w-full"
+              dangerouslySetInnerHTML={{ __html: renderCardField(frontText, true, currentCard.ord) }}
+            />
+
+            {showAnswer && (
+              <>
+                <hr className="w-full border-white/10 my-6" />
+                <div 
+                  className="card-content text-slate-300 text-sm sm:text-base leading-relaxed w-full"
+                  dangerouslySetInnerHTML={{ __html: renderCardField(backText, false, currentCard.ord) }}
+                />
+              </>
+            )}
+          </div>
+
+          <div className="safe-bottom-margin">
+            {!showAnswer ? (
+              <button
+                onClick={() => setShowAnswer(true)}
+                className="w-full py-3 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-lg transition"
+              >
+                Show Answer
+              </button>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                <button 
+                  onClick={() => handleRating(1)}
+                  className="py-2.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 rounded-xl text-xs font-bold"
+                >
+                  Again
+                </button>
+                <button 
+                  onClick={() => handleRating(2)}
+                  className="py-2.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-bold"
+                >
+                  Hard
+                </button>
+                <button 
+                  onClick={() => handleRating(3)}
+                  className="py-2.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold"
+                >
+                  Good
+                </button>
+                <button 
+                  onClick={() => handleRating(4)}
+                  className="py-2.5 bg-sky-950/60 hover:bg-sky-900 border border-sky-500/30 text-sky-300 rounded-xl text-xs font-bold"
+                >
+                  Easy
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // --- Main React App ---
     function App() {
       const [view, setView] = useState("decks");
@@ -839,18 +971,10 @@
             </label>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center px-1">
-              <h2 className="text-[11px] font-mono uppercase tracking-wider text-slate-400">Decks</h2>
-              <div className="flex space-x-3 text-[10px] font-mono text-slate-400">
-                <span className="text-sky-400">● New</span>
-                <span className="text-rose-400">● Learn</span>
-                <span className="text-emerald-400">● Review</span>
-              </div>
-            </div>
-
+          <div className="space-y-1">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">Decks</h2>
             {rootNodes.length === 0 ? (
-              <p className="text-xs text-slate-500 italic px-1 py-4 text-center">No decks loaded yet. Import an .apkg or .csv file above.</p>
+              <p className="text-center py-10 text-xs text-slate-500 font-mono">No decks imported yet. Drop a file above to get started.</p>
             ) : (
               rootNodes.map(node => (
                 <DeckTreeNode 
@@ -859,211 +983,8 @@
                   onSelectDeck={onSelectDeck} 
                   onExportDeck={onExportDeck}
                   onDeleteDeck={onDeleteDeck} 
-                  depth={0}
                 />
               ))
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // --- Study Screen Component ---
-    function StudyScreen({ studyTarget, allCards, onCardUpdate, onBack }) {
-      const activeCards = useMemo(() => {
-        return allCards.filter(studyTarget.filterFn);
-      }, [allCards, studyTarget]);
-
-      const [index, setIndex] = useState(0);
-      const [isFlipped, setIsFlipped] = useState(false);
-      const [history, setHistory] = useState([]);
-      const [renderedHtml, setRenderedHtml] = useState({ front: "", back: "" });
-      const currentCard = activeCards[index];
-
-      useEffect(() => {
-        if (!currentCard) return;
-        let isCancelled = false;
-        const createdUrls = [];
-
-        async function resolveMedia() {
-          const frontRaw = currentCard.fields[0] || "";
-          const backRaw = currentCard.fields[1] || "";
-          const isCloze = /\{\{c\d+::/i.test(frontRaw);
-
-          async function replaceUrls(html) {
-            let res = html;
-            const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-            const matches = [...res.matchAll(imgRegex)];
-            for (const m of matches) {
-              const filename = decodeURIComponent(m[1]).toLowerCase();
-              const blob = await dbGetMedia(filename);
-              if (blob) {
-                const url = URL.createObjectURL(blob);
-                createdUrls.push(url);
-                res = res.replace(m[0], `<img src="${url}" class="max-h-[44vh] object-contain rounded-xl" />`);
-              }
-            }
-            return res;
-          }
-
-          let finalFront = "";
-          let finalBack = "";
-
-          if (isCloze) {
-            const maskedFront = renderCardField(frontRaw, true, currentCard.ord);
-            finalFront = await replaceUrls(maskedFront);
-
-            const revealedFront = renderCardField(frontRaw, false, currentCard.ord);
-            let backCombined = `<div class="mb-4">${revealedFront}</div>`;
-            if (backRaw.trim().length > 0) {
-              backCombined += `<div class="pt-4 border-t border-white/[0.08] text-slate-300 text-sm leading-relaxed">${backRaw}</div>`;
-            }
-            finalBack = await replaceUrls(backCombined);
-          } else {
-            finalFront = await replaceUrls(renderCardField(frontRaw, true, currentCard.ord));
-            finalBack = await replaceUrls(renderCardField(backRaw, false, currentCard.ord));
-          }
-
-          if (!isCancelled) setRenderedHtml({ front: finalFront, back: finalBack });
-        }
-
-        resolveMedia();
-        return () => {
-          isCancelled = true;
-          createdUrls.forEach(url => URL.revokeObjectURL(url));
-        };
-      }, [currentCard]);
-
-      const handleGrade = async (rating) => {
-        if (!currentCard) return;
-        setHistory(prev => [...prev, { ...currentCard }]);
-
-        let { interval, easeFactor, reps } = currentCard;
-        if (rating === 1) {
-          reps = 0;
-          interval = 0;
-        } else if (rating === 2) {
-          interval = Math.max(1, Math.floor(interval * 1.2));
-          easeFactor = Math.max(1.3, easeFactor - 0.15);
-        } else if (rating === 3) {
-          reps += 1;
-          interval = reps === 1 ? 1 : reps === 2 ? 3 : Math.floor(interval * easeFactor);
-        } else if (rating === 4) {
-          reps += 1;
-          interval = reps === 1 ? 4 : Math.floor(interval * easeFactor * 1.3);
-          easeFactor += 0.15;
-        }
-
-        await dbUpdateCard({
-          ...currentCard,
-          interval,
-          easeFactor,
-          reps,
-          dueDate: Date.now() + interval * 86400000
-        });
-
-        setIsFlipped(false);
-        setIndex(prev => prev + 1);
-        onCardUpdate();
-      };
-
-      // Desktop Keyboard Shortcuts
-      useEffect(() => {
-        const handleKeyDown = (e) => {
-          if (e.code === "Space" || e.code === "Enter") {
-            e.preventDefault();
-            if (!isFlipped) setIsFlipped(true);
-          } else if (isFlipped) {
-            if (e.key === "1") handleGrade(1);
-            if (e.key === "2") handleGrade(2);
-            if (e.key === "3") handleGrade(3);
-            if (e.key === "4") handleGrade(4);
-          }
-        };
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-      }, [isFlipped, currentCard]);
-
-      if (!currentCard || index >= activeCards.length) {
-        return (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center max-w-md mx-auto space-y-3">
-            <span className="text-4xl">🎉</span>
-            <h2 className="text-lg font-bold text-slate-100">Congratulations!</h2>
-            <p className="text-xs text-slate-400">You have finished this review session for {studyTarget.title}.</p>
-            <button onClick={onBack} className="px-4 py-2 bg-sky-600 font-medium text-white rounded-lg text-xs shadow">
-              Return to Deck Overview
-            </button>
-          </div>
-        );
-      }
-
-      return (
-        <div className="max-w-3xl mx-auto h-full flex flex-col justify-between p-4 sm:p-6 select-none">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-400 pb-2">
-            <span className="font-semibold text-slate-200 truncate max-w-[60%]">{studyTarget.title}</span>
-            <div className="flex items-center space-x-2">
-              <span>{index + 1} / {activeCards.length}</span>
-              {history.length > 0 && (
-                <button 
-                  onClick={async () => {
-                    const last = history[history.length - 1];
-                    await dbUpdateCard(last);
-                    setHistory(prev => prev.slice(0, -1));
-                    setIndex(prev => Math.max(0, prev - 1));
-                    setIsFlipped(false);
-                    onCardUpdate();
-                  }} 
-                  className="px-2 py-0.5 bg-white/[0.06] hover:bg-white/[0.1] rounded text-[11px]"
-                >
-                  ↩ Undo
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div 
-            onClick={() => !isFlipped && setIsFlipped(true)}
-            className="flex-1 panel-card rounded-2xl p-6 sm:p-8 flex flex-col justify-center items-center text-center overflow-y-auto my-2 cursor-pointer relative"
-          >
-            <div className="card-content w-full max-w-xl text-slate-100 text-base leading-relaxed">
-              {!isFlipped ? (
-                <div dangerouslySetInnerHTML={{ __html: renderedHtml.front }} />
-              ) : (
-                <div className="text-left sm:text-center">
-                  <div dangerouslySetInnerHTML={{ __html: renderedHtml.back }} />
-                </div>
-              )}
-            </div>
-            {!isFlipped && <p className="text-[10px] font-mono text-slate-500 mt-6">[ Press Space or Tap to reveal ]</p>}
-          </div>
-
-          <div className="flex-shrink-0 pt-2 safe-bottom-margin max-w-lg mx-auto w-full">
-            {!isFlipped ? (
-              <button 
-                onClick={() => setIsFlipped(true)}
-                className="w-full py-3 bg-sky-600 hover:bg-sky-500 font-semibold text-white rounded-xl shadow text-xs"
-              >
-                Show Answer
-              </button>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => handleGrade(1)} className="flex flex-col items-center py-2 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/30 text-rose-300 font-bold rounded-xl text-xs">
-                  <span className="text-[10px] text-rose-400 font-normal font-mono">&lt;1m</span>
-                  <span>Again (1)</span>
-                </button>
-                <button onClick={() => handleGrade(2)} className="flex flex-col items-center py-2 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/30 text-amber-300 font-bold rounded-xl text-xs">
-                  <span className="text-[10px] text-amber-400 font-normal font-mono">1d</span>
-                  <span>Hard (2)</span>
-                </button>
-                <button onClick={() => handleGrade(3)} className="flex flex-col items-center py-2 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/30 text-emerald-300 font-bold rounded-xl text-xs">
-                  <span className="text-[10px] text-emerald-400 font-normal font-mono">3d</span>
-                  <span>Good (3)</span>
-                </button>
-                <button onClick={() => handleGrade(4)} className="flex flex-col items-center py-2 bg-sky-950/40 hover:bg-sky-900/50 border border-sky-500/30 text-sky-300 font-bold rounded-xl text-xs">
-                  <span className="text-[10px] text-sky-400 font-normal font-mono">5d</span>
-                  <span>Easy (4)</span>
-                </button>
-              </div>
             )}
           </div>
         </div>
