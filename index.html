@@ -129,17 +129,6 @@
       });
     }
 
-    async function dbGetMedia(name) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction("media", "readonly");
-        const store = tx.objectStore("media");
-        const req = store.get(name);
-        req.onsuccess = () => resolve(req.result?.blob || null);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
     async function dbUpdateCard(card) {
       const db = await openDB();
       return new Promise((resolve, reject) => {
@@ -177,59 +166,27 @@
       });
     }
 
-    // --- Exporter: Generates actual .apkg package containing SQLite database ---
     async function exportDeckToApkg(deckName, cards) {
       const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
       const db = new SQL.Database();
 
       db.run(`
         CREATE TABLE col (
-          id INTEGER PRIMARY KEY,
-          crt INTEGER NOT NULL,
-          mod INTEGER NOT NULL,
-          scm INTEGER NOT NULL,
-          ver INTEGER NOT NULL,
-          dcount INTEGER NOT NULL,
-          empty INTEGER NOT NULL,
-          ls INTEGER NOT NULL,
-          conf TEXT NOT NULL,
-          models TEXT NOT NULL,
-          decks TEXT NOT NULL,
-          dconf TEXT NOT NULL,
-          tags TEXT NOT NULL
+          id INTEGER PRIMARY KEY, crt INTEGER NOT NULL, mod INTEGER NOT NULL, scm INTEGER NOT NULL,
+          ver INTEGER NOT NULL, dcount INTEGER NOT NULL, empty INTEGER NOT NULL, ls INTEGER NOT NULL,
+          conf TEXT NOT NULL, models TEXT NOT NULL, decks TEXT NOT NULL, dconf TEXT NOT NULL, tags TEXT NOT NULL
         );
         CREATE TABLE notes (
-          id INTEGER PRIMARY KEY,
-          guid TEXT NOT NULL,
-          mid INTEGER NOT NULL,
-          mod INTEGER NOT NULL,
-          usn INTEGER NOT NULL,
-          tags TEXT NOT NULL,
-          flds TEXT NOT NULL,
-          sfld INTEGER NOT NULL,
-          csum INTEGER NOT NULL,
-          flags INTEGER NOT NULL,
-          data TEXT NOT NULL
+          id INTEGER PRIMARY KEY, guid TEXT NOT NULL, mid INTEGER NOT NULL, mod INTEGER NOT NULL,
+          usn INTEGER NOT NULL, tags TEXT NOT NULL, flds TEXT NOT NULL, sfld INTEGER NOT NULL,
+          csum INTEGER NOT NULL, flags INTEGER NOT NULL, data TEXT NOT NULL
         );
         CREATE TABLE cards (
-          id INTEGER PRIMARY KEY,
-          nid INTEGER NOT NULL,
-          did INTEGER NOT NULL,
-          ord INTEGER NOT NULL,
-          mod INTEGER NOT NULL,
-          usn INTEGER NOT NULL,
-          type INTEGER NOT NULL,
-          queue INTEGER NOT NULL,
-          due INTEGER NOT NULL,
-          ivl INTEGER NOT NULL,
-          factor INTEGER NOT NULL,
-          reps INTEGER NOT NULL,
-          lapses INTEGER NOT NULL,
-          left INTEGER NOT NULL,
-          odue INTEGER NOT NULL,
-          odid INTEGER NOT NULL,
-          flags INTEGER NOT NULL,
-          data TEXT NOT NULL
+          id INTEGER PRIMARY KEY, nid INTEGER NOT NULL, did INTEGER NOT NULL, ord INTEGER NOT NULL,
+          mod INTEGER NOT NULL, usn INTEGER NOT NULL, type INTEGER NOT NULL, queue INTEGER NOT NULL,
+          due INTEGER NOT NULL, ivl INTEGER NOT NULL, factor INTEGER NOT NULL, reps INTEGER NOT NULL,
+          lapses INTEGER NOT NULL, left INTEGER NOT NULL, odue INTEGER NOT NULL, odid INTEGER NOT NULL,
+          flags INTEGER NOT NULL, data TEXT NOT NULL
         );
       `);
 
@@ -245,31 +202,26 @@
         tmpls: [{ name: "Card 1", qfmt: "{{Front}}", afmt: "{{FrontSide}}<hr id=answer>{{Back}}" }]
       };
 
-      const decksJson = {
-        "1": { id: 1, name: "Default" }
-      };
+      const decksJson = { "1": { id: 1, name: "Default" } };
       decksJson[deckId] = { id: deckId, name: deckName };
 
-      db.run(
-        "INSERT INTO col VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [1, now, now * 1000, now * 1000, 11, 0, 0, 0, "{}", JSON.stringify(modelsJson), JSON.stringify(decksJson), "{}", "{}"]
-      );
+      db.run("INSERT INTO col VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+        1, now, now * 1000, now * 1000, 11, 0, 0, 0, "{}", JSON.stringify(modelsJson), JSON.stringify(decksJson), "{}", "{}"
+      ]);
 
       cards.forEach((c, idx) => {
         const nid = deckId + 10 + idx;
         const cid = deckId + 1000 + idx;
-        const fldsStr = c.fields.join("\x1f");
+        const fldsStr = (c.fields || []).join("\x1f");
         const tagStr = (c.tags || []).join(" ");
 
-        db.run(
-          "INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [nid, "guid" + nid, modelId, now, -1, ` ${tagStr} `, fldsStr, 0, 0, 0, ""]
-        );
+        db.run("INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+          nid, "guid" + nid, modelId, now, -1, ` ${tagStr} `, fldsStr, 0, 0, 0, ""
+        ]);
 
-        db.run(
-          "INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [cid, nid, deckId, c.ord || 0, now, -1, c.reps > 0 ? 2 : 0, c.suspended ? -1 : (c.reps > 0 ? 2 : 0), c.dueDate || now, c.interval || 0, Math.round((c.easeFactor || 2.5) * 1000), c.reps || 0, 0, 0, 0, 0, 0, ""]
-        );
+        db.run("INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+          cid, nid, deckId, c.ord || 0, now, -1, c.suspended ? -1 : (c.reps > 0 ? 2 : 0), c.suspended ? -1 : (c.reps > 0 ? 2 : 0), c.dueDate || now, c.interval || 0, Math.round((c.easeFactor || 2.5) * 1000), c.reps || 0, 0, 0, 0, 0, 0, ""
+        ]);
       });
 
       const binaryArray = db.export();
@@ -286,7 +238,6 @@
       URL.revokeObjectURL(url);
     }
 
-    // --- Parser Engine for APKG ---
     async function parseApkg(file) {
       const zip = await JSZip.loadAsync(file);
       let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
@@ -295,18 +246,6 @@
       const dbBuffer = await dbFile.async("uint8array");
       const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
       const db = new SQL.Database(dbBuffer);
-
-      const mediaJsonFile = zip.file("media");
-      const mediaMap = mediaJsonFile ? JSON.parse(await mediaJsonFile.async("text")) : {};
-      const mediaItems = [];
-      for (const [key, filename] of Object.entries(mediaMap)) {
-        const mFile = zip.file(key);
-        if (mFile) {
-          const blob = await mFile.async("blob");
-          mediaItems.push({ name: filename.toLowerCase(), blob });
-        }
-      }
-      if (mediaItems.length > 0) await dbPutBatch("media", mediaItems);
 
       const colRes = db.exec("SELECT decks, models FROM col");
       const decksJson = JSON.parse(colRes[0].values[0][0]);
@@ -332,16 +271,15 @@
           const [id, mid, flds, tags] = row;
           const fields = flds.split("\x1f");
           const tagList = tags ? tags.trim().split(/\s+/).filter(Boolean) : [];
-          const fieldNames = modelFieldNames.get(String(mid)) || [];
-          notesMap.set(id, { id, fields, tags: tagList, fieldNames });
+          notesMap.set(id, { id, fields, tags: tagList });
         });
       }
 
-      const cardsRes = db.exec("SELECT id, nid, did, ord, type, queue, factor, reps, ivl, due FROM cards");
+      const cardsRes = db.exec("SELECT id, nid, did, ord, queue, factor, reps, ivl, due FROM cards");
       const cards = [];
       if (cardsRes.length > 0) {
         cardsRes[0].values.forEach(row => {
-          const [id, nid, did, ord, type, queue, factor, reps, ivl, due] = row;
+          const [id, nid, did, ord, queue, factor, reps, ivl, due] = row;
           const note = notesMap.get(nid);
           if (note) {
             cards.push({
@@ -350,7 +288,6 @@
               did: String(did),
               ord,
               fields: note.fields,
-              fieldNames: note.fieldNames,
               tags: note.tags,
               suspended: queue === -1,
               interval: ivl || 0,
@@ -375,15 +312,9 @@
       processed = processed.replace(clozeRegex, (match, num, text, hint) => {
         const isCurrentCloze = parseInt(num) === (clozeOrd + 1);
         if (isFront) {
-          if (isCurrentCloze) {
-            return `<span class="cloze-bracket">[${hint || "..."}]</span>`;
-          }
-          return text;
+          return isCurrentCloze ? `<span class="cloze-bracket">[${hint || "..."}]</span>` : text;
         } else {
-          if (isCurrentCloze) {
-            return `<span class="cloze-reveal">${text}</span>`;
-          }
-          return text;
+          return isCurrentCloze ? `<span class="cloze-reveal">${text}</span>` : text;
         }
       });
       return processed;
@@ -420,15 +351,12 @@
         }
 
         let allNodeCards = [...directCards];
-
         childNodes.forEach(child => {
           populateStats(child);
           child.allDeckIds.forEach(id => descendantDeckIds.add(id));
-          const subCards = cards.filter(c => child.allDeckIds.has(c.did));
-          allNodeCards = allNodeCards.concat(subCards);
+          allNodeCards = allNodeCards.concat(cards.filter(c => child.allDeckIds.has(c.did)));
         });
 
-        // Deduplicate cards
         const uniqueCardsMap = new Map();
         allNodeCards.forEach(c => uniqueCardsMap.set(c.id, c));
         const uniqueCards = Array.from(uniqueCardsMap.values());
@@ -436,7 +364,6 @@
         node.newCount = uniqueCards.filter(c => !c.suspended && c.reps === 0).length;
         node.learningCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval < 1).length;
         node.reviewCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval >= 1).length;
-        node.totalActive = node.newCount + node.learningCount + node.reviewCount;
         node.allDeckIds = descendantDeckIds;
       }
 
@@ -444,12 +371,206 @@
       return root.children;
     }
 
-    // --- Study Screen Component ---
-    function StudyScreen({ studyTarget, allCards, onCardUpdate, onBack }) {
-      const targetCards = useMemo(() => {
-        return allCards.filter(studyTarget.filterFn);
-      }, [allCards, studyTarget]);
+    // --- CARD BROWSER COMPONENT ---
+    function BrowserScreen({ cards, decks, onCardUpdate }) {
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedCardIds, setSelectedCardIds] = useState(new Set());
 
+      // Extract all unique tags across cards
+      const allTags = useMemo(() => {
+        const tags = new Set();
+        cards.forEach(c => (c.tags || []).forEach(t => tags.add(t)));
+        return Array.from(tags).sort();
+      }, [cards]);
+
+      const filteredCards = useMemo(() => {
+        if (!searchQuery.trim()) return cards;
+        const q = searchQuery.trim().toLowerCase();
+
+        if (q.startsWith("tag:")) {
+          const targetTag = q.slice(4).trim();
+          return cards.filter(c => (c.tags || []).some(t => t.toLowerCase().includes(targetTag)));
+        }
+        if (q.startsWith("-tag:")) {
+          const targetTag = q.slice(5).trim();
+          return cards.filter(c => !(c.tags || []).some(t => t.toLowerCase().includes(targetTag)));
+        }
+        if (q === "is:suspended") {
+          return cards.filter(c => c.suspended);
+        }
+
+        return cards.filter(c => 
+          (c.fields?.[0] || "").toLowerCase().includes(q) ||
+          (c.fields?.[1] || "").toLowerCase().includes(q) ||
+          (c.tags || []).some(t => t.toLowerCase().includes(q))
+        );
+      }, [cards, searchQuery]);
+
+      const toggleSelectCard = (id) => {
+        const next = new Set(selectedCardIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedCardIds(next);
+      };
+
+      const toggleSuspendCards = async (targetCards, suspendState) => {
+        const updated = targetCards.map(c => ({ ...c, suspended: suspendState }));
+        await dbPutBatch("cards", updated);
+        onCardUpdate();
+      };
+
+      const suspendUnselectedInQuery = async () => {
+        const selectedSet = selectedCardIds.size > 0 ? selectedCardIds : new Set(filteredCards.map(c => c.id));
+        const updated = cards.map(c => {
+          if (!selectedSet.has(c.id)) {
+            return { ...c, suspended: true };
+          }
+          return c;
+        });
+        await dbPutBatch("cards", updated);
+        onCardUpdate();
+      };
+
+      return (
+        <div className="flex flex-col h-full max-w-5xl mx-auto p-4 gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 p-3 rounded-xl border border-white/10">
+            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+              <span className="text-slate-400 text-xs">🔍</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search cards or tag:medical, -tag:verb, is:suspended..."
+                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                onClick={() => {
+                  const targetCards = selectedCardIds.size > 0 
+                    ? cards.filter(c => selectedCardIds.has(c.id)) 
+                    : filteredCards;
+                  toggleSuspendCards(targetCards, true);
+                }}
+                className="px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded-lg font-semibold"
+              >
+                Suspend Selected
+              </button>
+
+              <button
+                onClick={() => {
+                  const targetCards = selectedCardIds.size > 0 
+                    ? cards.filter(c => selectedCardIds.has(c.id)) 
+                    : filteredCards;
+                  toggleSuspendCards(targetCards, false);
+                }}
+                className="px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 rounded-lg font-semibold"
+              >
+                Unsuspend Selected
+              </button>
+
+              <button
+                onClick={suspendUnselectedInQuery}
+                title="Suspend all cards EXCEPT the currently selected/filtered list"
+                className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 rounded-lg font-semibold"
+              >
+                Suspend Others
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 overflow-hidden">
+            {/* Sidebar Tags list */}
+            <div className="bg-slate-900/60 border border-white/5 rounded-xl p-3 overflow-y-auto space-y-1 text-xs">
+              <div className="font-bold text-slate-400 mb-2 uppercase text-[10px] tracking-wider">Tags Tree</div>
+              <button
+                onClick={() => setSearchQuery("")}
+                className={`w-full text-left px-2 py-1 rounded ${searchQuery === "" ? "bg-sky-600/30 text-sky-300 font-semibold" : "text-slate-400 hover:text-slate-200"}`}
+              >
+                All Cards ({cards.length})
+              </button>
+              <button
+                onClick={() => setSearchQuery("is:suspended")}
+                className={`w-full text-left px-2 py-1 rounded ${searchQuery === "is:suspended" ? "bg-amber-600/30 text-amber-300 font-semibold" : "text-amber-400/80 hover:text-amber-200"}`}
+              >
+                Suspended ({cards.filter(c => c.suspended).length})
+              </button>
+              <hr className="border-white/5 my-2" />
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setSearchQuery(`tag:${tag}`)}
+                  className={`w-full text-left px-2 py-1 rounded truncate ${searchQuery === `tag:${tag}` ? "bg-sky-600/30 text-sky-300 font-semibold" : "text-slate-300 hover:text-white"}`}
+                >
+                  🏷️ {tag}
+                </button>
+              ))}
+            </div>
+
+            {/* Table View */}
+            <div className="md:col-span-3 bg-slate-900/60 border border-white/5 rounded-xl overflow-y-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-950/80 text-slate-400 sticky top-0 border-b border-white/10 font-mono">
+                  <tr>
+                    <th className="p-2.5 w-8">
+                      <input 
+                        type="checkbox"
+                        checked={selectedCardIds.size === filteredCards.length && filteredCards.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedCardIds(new Set(filteredCards.map(c => c.id)));
+                          else setSelectedCardIds(new Set());
+                        }}
+                      />
+                    </th>
+                    <th className="p-2.5">Front</th>
+                    <th className="p-2.5">Back</th>
+                    <th className="p-2.5">Tags</th>
+                    <th className="p-2.5 w-20 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredCards.map(c => (
+                    <tr 
+                      key={c.id} 
+                      className={`hover:bg-white/[0.02] ${c.suspended ? "opacity-40 bg-amber-950/10" : ""} ${selectedCardIds.has(c.id) ? "bg-sky-950/30" : ""}`}
+                    >
+                      <td className="p-2.5">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedCardIds.has(c.id)} 
+                          onChange={() => toggleSelectCard(c.id)}
+                        />
+                      </td>
+                      <td className="p-2.5 truncate max-w-[160px] text-slate-200" dangerouslySetInnerHTML={{ __html: c.fields?.[0] || "" }} />
+                      <td className="p-2.5 truncate max-w-[160px] text-slate-400" dangerouslySetInnerHTML={{ __html: c.fields?.[1] || "" }} />
+                      <td className="p-2.5 text-slate-400">
+                        {(c.tags || []).map(t => (
+                          <span key={t} className="inline-block bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded mr-1">
+                            {t}
+                          </span>
+                        ))}
+                      </td>
+                      <td className="p-2.5 text-center font-mono text-[10px]">
+                        {c.suspended ? (
+                          <span className="text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/20">Suspended</span>
+                        ) : (
+                          <span className="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/20">Active</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- STUDY SCREEN COMPONENT ---
+    function StudyScreen({ studyTarget, allCards, onCardUpdate, onBack }) {
+      const targetCards = useMemo(() => allCards.filter(studyTarget.filterFn), [allCards, studyTarget]);
       const [currentIndex, setCurrentIndex] = useState(0);
       const [showAnswer, setShowAnswer] = useState(false);
 
@@ -460,55 +581,34 @@
           <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
             <span className="text-4xl">🎉</span>
             <h2 className="text-lg font-bold text-slate-100">Deck Complete!</h2>
-            <p className="text-slate-400 text-xs max-w-sm">
-              You've reviewed all available cards for this target session.
-            </p>
-            <button 
-              onClick={onBack}
-              className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold shadow"
-            >
+            <p className="text-slate-400 text-xs max-w-sm">You've reviewed all available cards for this target session.</p>
+            <button onClick={onBack} className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold shadow">
               Return to Decks
             </button>
           </div>
         );
       }
 
-      const frontText = currentCard.fields?.[0] || "";
-      const backText = currentCard.fields?.[1] || "";
-
       const handleRating = async (rating) => {
-        // Simple SM-2 spacing algorithm simulation
         let newInterval = currentCard.interval || 0;
         let newEase = currentCard.easeFactor || 2.5;
-        let newReps = (currentCard.reps || 0) + 1;
 
-        if (rating === 1) { // Again
-          newInterval = 0;
-          newEase = Math.max(1.3, newEase - 0.2);
-        } else if (rating === 2) { // Hard
-          newInterval = newInterval === 0 ? 1 : newInterval * 1.2;
-        } else if (rating === 3) { // Good
-          newInterval = newInterval === 0 ? 1 : newInterval * newEase;
-        } else if (rating === 4) { // Easy
-          newInterval = newInterval === 0 ? 4 : newInterval * newEase * 1.3;
-          newEase += 0.15;
-        }
+        if (rating === 1) { newInterval = 0; newEase = Math.max(1.3, newEase - 0.2); }
+        else if (rating === 2) { newInterval = newInterval === 0 ? 1 : newInterval * 1.2; }
+        else if (rating === 3) { newInterval = newInterval === 0 ? 1 : newInterval * newEase; }
+        else if (rating === 4) { newInterval = newInterval === 0 ? 4 : newInterval * newEase * 1.3; newEase += 0.15; }
 
-        const updated = {
+        await dbUpdateCard({
           ...currentCard,
-          reps: newReps,
+          reps: (currentCard.reps || 0) + 1,
           interval: Math.round(newInterval),
           easeFactor: newEase,
           dueDate: Date.now() + Math.round(newInterval) * 86400000
-        };
+        });
 
-        await dbUpdateCard(updated);
         setShowAnswer(false);
-        if (currentIndex < targetCards.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          onCardUpdate();
-        }
+        if (currentIndex < targetCards.length - 1) setCurrentIndex(currentIndex + 1);
+        else onCardUpdate();
       };
 
       return (
@@ -519,56 +619,26 @@
           </div>
 
           <div className="flex-1 panel-card rounded-2xl p-6 flex flex-col justify-center items-center text-center overflow-y-auto mb-6 shadow-xl">
-            <div 
-              className="card-content text-slate-100 text-base sm:text-lg leading-relaxed w-full"
-              dangerouslySetInnerHTML={{ __html: renderCardField(frontText, true, currentCard.ord) }}
-            />
-
+            <div className="card-content text-slate-100 text-base sm:text-lg leading-relaxed w-full" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[0], true, currentCard.ord) }} />
             {showAnswer && (
               <>
                 <hr className="w-full border-white/10 my-6" />
-                <div 
-                  className="card-content text-slate-300 text-sm sm:text-base leading-relaxed w-full"
-                  dangerouslySetInnerHTML={{ __html: renderCardField(backText, false, currentCard.ord) }}
-                />
+                <div className="card-content text-slate-300 text-sm sm:text-base leading-relaxed w-full" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[1], false, currentCard.ord) }} />
               </>
             )}
           </div>
 
           <div className="safe-bottom-margin">
             {!showAnswer ? (
-              <button
-                onClick={() => setShowAnswer(true)}
-                className="w-full py-3 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-lg transition"
-              >
+              <button onClick={() => setShowAnswer(true)} className="w-full py-3 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-lg transition">
                 Show Answer
               </button>
             ) : (
               <div className="grid grid-cols-4 gap-2">
-                <button 
-                  onClick={() => handleRating(1)}
-                  className="py-2.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 rounded-xl text-xs font-bold"
-                >
-                  Again
-                </button>
-                <button 
-                  onClick={() => handleRating(2)}
-                  className="py-2.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-bold"
-                >
-                  Hard
-                </button>
-                <button 
-                  onClick={() => handleRating(3)}
-                  className="py-2.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold"
-                >
-                  Good
-                </button>
-                <button 
-                  onClick={() => handleRating(4)}
-                  className="py-2.5 bg-sky-950/60 hover:bg-sky-900 border border-sky-500/30 text-sky-300 rounded-xl text-xs font-bold"
-                >
-                  Easy
-                </button>
+                <button onClick={() => handleRating(1)} className="py-2.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 rounded-xl text-xs font-bold">Again</button>
+                <button onClick={() => handleRating(2)} className="py-2.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-bold">Hard</button>
+                <button onClick={() => handleRating(3)} className="py-2.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold">Good</button>
+                <button onClick={() => handleRating(4)} className="py-2.5 bg-sky-950/60 hover:bg-sky-900 border border-sky-500/30 text-sky-300 rounded-xl text-xs font-bold">Easy</button>
               </div>
             )}
           </div>
@@ -576,17 +646,13 @@
       );
     }
 
-    // --- Main React App ---
+    // --- MAIN APP COMPONENT ---
     function App() {
       const [view, setView] = useState("decks");
       const [decks, setDecks] = useState([]);
       const [cards, setCards] = useState([]);
       const [studyTarget, setStudyTarget] = useState(null);
       const [loading, setLoading] = useState(false);
-      const [statusMsg, setStatusMsg] = useState("");
-      
-      // Modal state for CSV Import
-      const [csvImportData, setCsvImportData] = useState(null);
 
       const loadData = async () => {
         const d = await dbGetAll("decks");
@@ -601,103 +667,18 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        const isCsvOrTxt = file.name.endsWith(".csv") || file.name.endsWith(".txt") || file.name.endsWith(".tsv");
-        
-        if (isCsvOrTxt) {
-          setLoading(true);
-          setStatusMsg("Parsing CSV/Text file...");
-          Papa.parse(file, {
-            header: false,
-            skipEmptyLines: true,
-            complete: (results) => {
-              setLoading(false);
-              if (results.data && results.data.length > 0) {
-                setCsvImportData({
-                  fileName: file.name,
-                  rows: results.data
-                });
-              } else {
-                alert("The selected text file is empty.");
-              }
-            },
-            error: (err) => {
-              setLoading(false);
-              alert("Error parsing file: " + err.message);
-            }
-          });
-          e.target.value = null;
-          return;
-        }
-
-        // Handle .apkg import
         setLoading(true);
-        setStatusMsg("Unzipping & Parsing SQLite...");
         try {
-          await parseApkg(file);
-          await loadData();
-          setStatusMsg("");
+          if (file.name.endsWith(".apkg")) {
+            await parseApkg(file);
+            await loadData();
+          }
         } catch (err) {
           alert("Import error: " + err.message);
-          console.error(err);
         } finally {
           setLoading(false);
         }
         e.target.value = null;
-      };
-
-      const handleConfirmCsvImport = async ({ deckName, frontColIdx, backColIdx, tagColIdx }) => {
-        if (!csvImportData) return;
-        setLoading(true);
-        setStatusMsg("Converting text data to Anki cards...");
-
-        try {
-          let deck = decks.find(d => d.name === deckName);
-          let deckId = deck ? deck.id : String(Date.now());
-
-          if (!deck) {
-            deck = { id: deckId, name: deckName };
-            await dbPutBatch("decks", [deck]);
-          }
-
-          const newCards = csvImportData.rows.map((row, idx) => {
-            const frontVal = row[frontColIdx] || "";
-            const backVal = row[backColIdx] || "";
-            const tagsVal = tagColIdx !== null && row[tagColIdx] ? row[tagColIdx].split(/\s+/).filter(Boolean) : [];
-
-            return {
-              id: String(Date.now() + idx),
-              nid: String(Date.now() + idx + 50000),
-              did: deckId,
-              ord: 0,
-              fields: [frontVal, backVal],
-              fieldNames: ["Front", "Back"],
-              tags: tagsVal,
-              suspended: false,
-              interval: 0,
-              easeFactor: 2.5,
-              reps: 0,
-              dueDate: Date.now()
-            };
-          });
-
-          await dbPutBatch("cards", newCards);
-          await loadData();
-          setCsvImportData(null);
-        } catch (err) {
-          alert("Failed to import text file: " + err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const startDeckStudy = (node) => {
-        const deckIds = Array.from(node.allDeckIds);
-        setStudyTarget({
-          type: "deck",
-          title: node.displayName,
-          filterFn: (c) => deckIds.includes(c.did) && !c.suspended
-        });
-        setView("study");
       };
 
       return (
@@ -707,27 +688,31 @@
               <span className="text-xl">⚡</span>
               <div>
                 <h1 className="text-sm font-bold tracking-tight text-slate-100">AnkiFlow</h1>
-                <p className="text-[10px] font-mono text-slate-400">
-                  {view === "decks" ? "Deck Overview" : view === "browse" ? "Card Browser" : "Study Session"}
-                </p>
+                <p className="text-[10px] font-mono text-slate-400">{view.toUpperCase()} VIEW</p>
               </div>
             </div>
 
-            {view === "study" && (
+            <div className="flex items-center gap-2">
               <button 
-                onClick={() => { setView("decks"); loadData(); }} 
-                className="px-3 py-1 bg-white/[0.06] hover:bg-white/[0.1] active:scale-95 border border-white/[0.08] rounded-lg text-xs font-medium text-slate-200"
+                onClick={() => setView("decks")} 
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${view === "decks" ? "bg-sky-600 text-white" : "bg-white/[0.06] text-slate-300"}`}
               >
-                ← Decks
+                Decks
               </button>
-            )}
+              <button 
+                onClick={() => setView("browser")} 
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${view === "browser" ? "bg-sky-600 text-white" : "bg-white/[0.06] text-slate-300"}`}
+              >
+                Card Browser
+              </button>
+            </div>
           </header>
 
           <main className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
                 <div className="w-8 h-8 rounded-full border-2 border-slate-600 border-t-sky-400 animate-spin"></div>
-                <p className="text-slate-400 font-mono text-xs">{statusMsg}</p>
+                <p className="text-slate-400 font-mono text-xs">Processing Package...</p>
               </div>
             )}
 
@@ -735,14 +720,18 @@
               <DecksScreen 
                 decks={decks} 
                 cards={cards} 
-                onSelectDeck={startDeckStudy}
-                onUpload={handleFileUpload}
-                onExportDeck={(node) => {
-                  const targetCards = cards.filter(c => node.allDeckIds.has(c.did));
-                  exportDeckToApkg(node.fullName, targetCards);
+                onSelectDeck={(node) => {
+                  setStudyTarget({
+                    type: "deck",
+                    title: node.displayName,
+                    filterFn: (c) => node.allDeckIds.has(c.did) && !c.suspended
+                  });
+                  setView("study");
                 }}
+                onUpload={handleFileUpload}
+                onExportDeck={(node) => exportDeckToApkg(node.fullName, cards.filter(c => node.allDeckIds.has(c.did)))}
                 onDeleteDeck={async (node) => {
-                  if (confirm(`Delete "${node.displayName}" and all its subdecks?`)) {
+                  if (confirm(`Delete "${node.displayName}"?`)) {
                     await dbDeleteDeck(node.deckId, node.fullName, decks);
                     loadData();
                   }
@@ -750,125 +739,14 @@
               />
             )}
 
+            {!loading && view === "browser" && (
+              <BrowserScreen cards={cards} decks={decks} onCardUpdate={loadData} />
+            )}
+
             {!loading && view === "study" && studyTarget && (
-              <StudyScreen 
-                studyTarget={studyTarget}
-                allCards={cards}
-                onCardUpdate={loadData}
-                onBack={() => { setView("decks"); loadData(); }}
-              />
+              <StudyScreen studyTarget={studyTarget} allCards={cards} onCardUpdate={loadData} onBack={() => setView("decks")} />
             )}
           </main>
-
-          {/* Modal for mapping CSV/Text import */}
-          {csvImportData && (
-            <CsvMappingModal 
-              data={csvImportData}
-              decks={decks}
-              onConfirm={handleConfirmCsvImport}
-              onCancel={() => setCsvImportData(null)}
-            />
-          )}
-        </div>
-      );
-    }
-
-    // Modal Component for CSV Field Alignment
-    function CsvMappingModal({ data, decks, onConfirm, onCancel }) {
-      const [deckName, setDeckName] = useState(decks[0]?.name || "Imported Deck");
-      const [frontIdx, setFrontIdx] = useState(0);
-      const [backIdx, setBackIdx] = useState(1);
-      const [tagIdx, setTagIdx] = useState("none");
-
-      const colCount = data.rows[0] ? data.rows[0].length : 0;
-      const columns = Array.from({ length: colCount }, (_, i) => i);
-
-      return (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl text-xs">
-            <div>
-              <h3 className="text-base font-bold text-slate-100">Import Text / CSV File</h3>
-              <p className="text-slate-400 text-[11px] mt-0.5">{data.fileName} • Found {data.rows.length} records</p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Target Deck</label>
-                <input 
-                  type="text" 
-                  value={deckName}
-                  onChange={(e) => setDeckName(e.target.value)}
-                  placeholder="e.g. Spanish::Vocabulary"
-                  className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-sky-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Front Field (Column)</label>
-                  <select 
-                    value={frontIdx} 
-                    onChange={(e) => setFrontIdx(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-slate-200"
-                  >
-                    {columns.map(c => <option key={c} value={c}>Column {c + 1}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Back Field (Column)</label>
-                  <select 
-                    value={backIdx} 
-                    onChange={(e) => setBackIdx(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-slate-200"
-                  >
-                    {columns.map(c => <option key={c} value={c}>Column {c + 1}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Tags Column (Optional)</label>
-                <select 
-                  value={tagIdx} 
-                  onChange={(e) => setTagIdx(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-slate-200"
-                >
-                  <option value="none">None</option>
-                  {columns.map(c => <option key={c} value={c}>Column {c + 1}</option>)}
-                </select>
-              </div>
-
-              {/* Preview table */}
-              <div>
-                <label className="block text-slate-400 text-[11px] font-mono mb-1">Sample Preview (Row 1)</label>
-                <div className="bg-slate-950 border border-white/5 rounded-lg p-3 space-y-1 font-mono text-[11px]">
-                  <p><span className="text-slate-500">Front:</span> <span className="text-slate-200">{data.rows[0]?.[frontIdx] || "(empty)"}</span></p>
-                  <p><span className="text-slate-500">Back:</span> <span className="text-slate-200">{data.rows[0]?.[backIdx] || "(empty)"}</span></p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-2">
-              <button 
-                onClick={onCancel}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-lg"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => onConfirm({
-                  deckName,
-                  frontColIdx: frontIdx,
-                  backColIdx: backIdx,
-                  tagColIdx: tagIdx === "none" ? null : Number(tagIdx)
-                })}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-lg shadow"
-              >
-                Import Cards
-              </button>
-            </div>
-          </div>
         </div>
       );
     }
@@ -876,7 +754,6 @@
     function DeckTreeNode({ node, onSelectDeck, onExportDeck, onDeleteDeck, depth = 0 }) {
       const [isOpen, setIsOpen] = useState(true);
       const childNodes = Object.values(node.children);
-      const hasChildren = childNodes.length > 0;
 
       return (
         <div className="flex flex-col select-none">
@@ -886,63 +763,29 @@
             style={{ marginLeft: `${depth * 18}px` }}
           >
             <div className="flex items-center space-x-3 flex-1 min-w-0 pr-3">
-              {hasChildren ? (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                  className="w-6 h-6 flex items-center justify-center rounded bg-white/[0.04] text-slate-400 text-[10px]"
-                >
+              {childNodes.length > 0 ? (
+                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-6 h-6 flex items-center justify-center rounded bg-white/[0.04] text-slate-400 text-[10px]">
                   {isOpen ? "▼" : "▶"}
                 </button>
               ) : (
                 <span className="w-6 h-6 flex items-center justify-center text-slate-600 text-xs">🗂</span>
               )}
-
-              <span className="font-semibold text-slate-200 text-xs truncate group-hover:text-sky-300 transition">
-                {node.displayName}
-              </span>
+              <span className="font-semibold text-slate-200 text-xs truncate group-hover:text-sky-300 transition">{node.displayName}</span>
             </div>
 
-            {/* Anki classic blue/red/green card counter badges */}
             <div className="flex items-center space-x-2 flex-shrink-0 text-xs font-mono font-bold">
-              <span className="text-sky-400 bg-sky-950/40 border border-sky-500/20 px-2 py-0.5 rounded" title="New Cards">
-                {node.newCount}
-              </span>
-              <span className="text-rose-400 bg-rose-950/40 border border-rose-500/20 px-2 py-0.5 rounded" title="Learning Cards">
-                {node.learningCount}
-              </span>
-              <span className="text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded" title="To Review">
-                {node.reviewCount}
-              </span>
-
-              <button 
-                onClick={(e) => { e.stopPropagation(); onExportDeck(node); }}
-                title="Export Deck as .apkg"
-                className="p-1 text-slate-500 hover:text-sky-400 text-xs ml-1"
-              >
-                💾
-              </button>
-
-              <button 
-                onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }}
-                title="Delete Deck"
-                className="p-1 text-slate-600 hover:text-rose-400 text-xs"
-              >
-                ✕
-              </button>
+              <span className="text-sky-400 bg-sky-950/40 border border-sky-500/20 px-2 py-0.5 rounded">{node.newCount}</span>
+              <span className="text-rose-400 bg-rose-950/40 border border-rose-500/20 px-2 py-0.5 rounded">{node.learningCount}</span>
+              <span className="text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded">{node.reviewCount}</span>
+              <button onClick={(e) => { e.stopPropagation(); onExportDeck(node); }} title="Export .apkg" className="p-1 text-slate-500 hover:text-sky-400 text-xs ml-1">💾</button>
+              <button onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }} title="Delete" className="p-1 text-slate-600 hover:text-rose-400 text-xs">✕</button>
             </div>
           </div>
 
-          {hasChildren && isOpen && (
+          {childNodes.length > 0 && isOpen && (
             <div className="flex flex-col border-l border-white/[0.06] ml-3 pl-1">
               {childNodes.map(child => (
-                <DeckTreeNode 
-                  key={child.fullName} 
-                  node={child} 
-                  onSelectDeck={onSelectDeck} 
-                  onExportDeck={onExportDeck}
-                  onDeleteDeck={onDeleteDeck} 
-                  depth={depth + 1}
-                />
+                <DeckTreeNode key={child.fullName} node={child} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} depth={depth + 1} />
               ))}
             </div>
           )}
@@ -951,41 +794,23 @@
     }
 
     function DecksScreen({ decks, cards, onSelectDeck, onUpload, onExportDeck, onDeleteDeck }) {
-      const deckTree = useMemo(() => buildCleanDeckTree(decks, cards), [decks, cards]);
-      const rootNodes = Object.values(deckTree);
+      const rootNodes = Object.values(useMemo(() => buildCleanDeckTree(decks, cards), [decks, cards]));
 
       return (
         <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 pb-20">
           <div className="border border-dashed border-white/[0.12] bg-white/[0.01] hover:border-sky-500/40 rounded-xl p-5 text-center cursor-pointer transition">
-            <input 
-              type="file" 
-              accept=".apkg,.csv,.txt,.tsv" 
-              onChange={onUpload} 
-              id="file-input" 
-              className="hidden" 
-            />
+            <input type="file" accept=".apkg" onChange={onUpload} id="file-input" className="hidden" />
             <label htmlFor="file-input" className="cursor-pointer space-y-1 block">
               <span className="text-xl block">📥</span>
-              <p className="font-semibold text-xs text-slate-200">Import Deck Package (.apkg) or Plain Text / CSV (.csv, .txt)</p>
-              <p className="text-[11px] text-slate-400">Supports tab-separated, comma-separated, and official Anki packages</p>
+              <p className="font-semibold text-xs text-slate-200">Import Anki Package (.apkg)</p>
             </label>
           </div>
 
           <div className="space-y-1">
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">Decks</h2>
-            {rootNodes.length === 0 ? (
-              <p className="text-center py-10 text-xs text-slate-500 font-mono">No decks imported yet. Drop a file above to get started.</p>
-            ) : (
-              rootNodes.map(node => (
-                <DeckTreeNode 
-                  key={node.fullName} 
-                  node={node} 
-                  onSelectDeck={onSelectDeck} 
-                  onExportDeck={onExportDeck}
-                  onDeleteDeck={onDeleteDeck} 
-                />
-              ))
-            )}
+            {rootNodes.map(node => (
+              <DeckTreeNode key={node.fullName} node={node} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} />
+            ))}
           </div>
         </div>
       );
