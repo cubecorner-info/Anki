@@ -36,8 +36,8 @@
 
   <style>
     body {
-      background-color: #090d16;
-      color: #e2e8f0;
+      background-color: #0b0f19;
+      color: #f8fafc;
       font-family: "Inter", -apple-system, sans-serif;
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
@@ -47,41 +47,56 @@
       overflow: hidden;
     }
     .panel-card {
-      background: rgba(15, 23, 42, 0.65);
+      background: rgba(15, 23, 42, 0.85);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .cloze-bracket {
       color: #38bdf8;
       font-weight: 700;
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px dashed rgba(56, 189, 248, 0.35);
-      padding: 2px 8px;
-      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px dashed rgba(56, 189, 248, 0.4);
+      padding: 3px 10px;
+      border-radius: 6px;
     }
     .cloze-reveal {
       color: #34d399;
       font-weight: 700;
-      background: rgba(52, 211, 153, 0.15);
-      border: 1px solid rgba(52, 211, 153, 0.4);
-      padding: 2px 8px;
-      border-radius: 4px;
+      background: rgba(52, 211, 153, 0.18);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      padding: 3px 10px;
+      border-radius: 6px;
       display: inline-block;
     }
     .card-content img {
       max-width: 100%;
-      max-height: 44vh;
+      max-height: 48vh;
       object-fit: contain;
-      border-radius: 0.75rem;
-      margin: 1rem auto;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.85rem;
+      margin: 1.25rem auto;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .safe-bottom-margin {
-      margin-bottom: max(0.5rem, env(safe-area-inset-bottom));
+      margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
     }
   </style>
 </head>
-<body class="h-screen w-screen flex flex-col relative">
+<body class="h-screen w-screen flex flex-col relative text-base">
   <div id="root" class="h-full w-full flex flex-col relative z-10"></div>
 
   <script type="text/babel">
@@ -250,11 +265,6 @@
       const colRes = db.exec("SELECT decks, models FROM col");
       const decksJson = JSON.parse(colRes[0].values[0][0]);
       const modelsJson = JSON.parse(colRes[0].values[0][1]);
-      
-      const modelFieldNames = new Map();
-      for (const [mid, model] of Object.entries(modelsJson)) {
-        modelFieldNames.set(mid, (model.flds || []).map(f => f.name));
-      }
 
       const decks = [];
       for (const [id, d] of Object.entries(decksJson)) {
@@ -371,17 +381,96 @@
       return root.children;
     }
 
-    // --- CARD BROWSER COMPONENT ---
+    // Helper to build recursive tag hierarchy tree from 'parent::child' tags
+    function buildTagTree(cards) {
+      const root = { children: {}, count: 0 };
+
+      cards.forEach(card => {
+        const tags = card.tags || [];
+        tags.forEach(fullTag => {
+          const parts = fullTag.split("::").map(p => p.trim()).filter(Boolean);
+          let current = root;
+          let cumulativePath = "";
+
+          parts.forEach((part, idx) => {
+            cumulativePath = idx === 0 ? part : `${cumulativePath}::${part}`;
+            if (!current.children[part]) {
+              current.children[part] = {
+                name: part,
+                fullTag: cumulativePath,
+                children: {},
+                count: 0
+              };
+            }
+            current = current.children[part];
+            current.count++;
+          });
+        });
+      });
+
+      return root.children;
+    }
+
+    // Recursive Tag Item UI component (Desktop Anki style)
+    function TagTreeNode({ node, searchQuery, setSearchQuery, depth = 0 }) {
+      const [isOpen, setIsOpen] = useState(false);
+      const childNodes = Object.values(node.children);
+      const isSelected = searchQuery === `tag:${node.fullTag}`;
+
+      const toggleOpen = (e) => {
+        e.stopPropagation();
+        setIsOpen(!isOpen);
+      };
+
+      return (
+        <div className="flex flex-col select-none">
+          <div 
+            onClick={() => setSearchQuery(`tag:${node.fullTag}`)}
+            className={`group flex items-center justify-between py-1 px-2 rounded-lg cursor-pointer transition text-xs font-sans ${isSelected ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+            style={{ paddingLeft: `${depth * 14 + 8}px` }}
+          >
+            <div className="flex items-center space-x-1.5 truncate">
+              {childNodes.length > 0 ? (
+                <button 
+                  onClick={toggleOpen} 
+                  className="w-4 h-4 flex items-center justify-center text-[10px] text-slate-400 hover:text-white"
+                >
+                  {isOpen ? "◢" : "▶"}
+                </button>
+              ) : (
+                <span className="w-4 h-4 flex items-center justify-center text-[11px] text-slate-500">🏷️</span>
+              )}
+              <span className="truncate">{node.name}</span>
+            </div>
+
+            <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-1.5 py-0.2 rounded-full ml-2 flex-shrink-0">
+              {node.count}
+            </span>
+          </div>
+
+          {childNodes.length > 0 && isOpen && (
+            <div className="flex flex-col border-l border-white/10 ml-3">
+              {childNodes.map(child => (
+                <TagTreeNode 
+                  key={child.fullTag} 
+                  node={child} 
+                  searchQuery={searchQuery} 
+                  setSearchQuery={setSearchQuery} 
+                  depth={depth + 1} 
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --- CARD BROWSER COMPONENT WITH DESKTOP TAG SIDEBAR ---
     function BrowserScreen({ cards, decks, onCardUpdate }) {
       const [searchQuery, setSearchQuery] = useState("");
       const [selectedCardIds, setSelectedCardIds] = useState(new Set());
 
-      // Extract all unique tags across cards
-      const allTags = useMemo(() => {
-        const tags = new Set();
-        cards.forEach(c => (c.tags || []).forEach(t => tags.add(t)));
-        return Array.from(tags).sort();
-      }, [cards]);
+      const tagTreeRoot = useMemo(() => buildTagTree(cards), [cards]);
 
       const filteredCards = useMemo(() => {
         if (!searchQuery.trim()) return cards;
@@ -389,11 +478,11 @@
 
         if (q.startsWith("tag:")) {
           const targetTag = q.slice(4).trim();
-          return cards.filter(c => (c.tags || []).some(t => t.toLowerCase().includes(targetTag)));
+          return cards.filter(c => (c.tags || []).some(t => t.toLowerCase() === targetTag || t.toLowerCase().startsWith(targetTag + "::")));
         }
         if (q.startsWith("-tag:")) {
           const targetTag = q.slice(5).trim();
-          return cards.filter(c => !(c.tags || []).some(t => t.toLowerCase().includes(targetTag)));
+          return cards.filter(c => !(c.tags || []).some(t => t.toLowerCase() === targetTag || t.toLowerCase().startsWith(targetTag + "::")));
         }
         if (q === "is:suspended") {
           return cards.filter(c => c.suspended);
@@ -432,20 +521,21 @@
       };
 
       return (
-        <div className="flex flex-col h-full max-w-5xl mx-auto p-4 gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/80 p-3 rounded-xl border border-white/10">
-            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-              <span className="text-slate-400 text-xs">🔍</span>
+        <div className="flex flex-col h-full max-w-7xl mx-auto p-4 md:p-6 gap-5">
+          {/* Top Search Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-3.5 rounded-2xl border border-white/10 shadow-lg">
+            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+              <span className="text-slate-400 text-base ml-1">🔍</span>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search cards or tag:medical, -tag:verb, is:suspended..."
-                className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                placeholder="Search fields or tag:medical, -tag:verb, is:suspended..."
+                className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
               />
             </div>
 
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2.5 text-xs font-semibold">
               <button
                 onClick={() => {
                   const targetCards = selectedCardIds.size > 0 
@@ -453,7 +543,7 @@
                     : filteredCards;
                   toggleSuspendCards(targetCards, true);
                 }}
-                className="px-3 py-1.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded-lg font-semibold"
+                className="px-3.5 py-2 bg-amber-950/70 hover:bg-amber-900/90 border border-amber-500/40 text-amber-300 rounded-xl transition active:scale-95 shadow"
               >
                 Suspend Selected
               </button>
@@ -465,57 +555,74 @@
                     : filteredCards;
                   toggleSuspendCards(targetCards, false);
                 }}
-                className="px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 rounded-lg font-semibold"
+                className="px-3.5 py-2 bg-emerald-950/70 hover:bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 rounded-xl transition active:scale-95 shadow"
               >
                 Unsuspend Selected
               </button>
 
               <button
                 onClick={suspendUnselectedInQuery}
-                title="Suspend all cards EXCEPT the currently selected/filtered list"
-                className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 rounded-lg font-semibold"
+                title="Suspend all cards EXCEPT the current query/selection"
+                className="px-3.5 py-2 bg-rose-950/70 hover:bg-rose-900/90 border border-rose-500/40 text-rose-300 rounded-xl transition active:scale-95 shadow"
               >
                 Suspend Others
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 overflow-hidden">
-            {/* Sidebar Tags list */}
-            <div className="bg-slate-900/60 border border-white/5 rounded-xl p-3 overflow-y-auto space-y-1 text-xs">
-              <div className="font-bold text-slate-400 mb-2 uppercase text-[10px] tracking-wider">Tags Tree</div>
+          {/* Browser Workspace */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 flex-1 overflow-hidden">
+            
+            {/* Anki Desktop Style Tag Tree Sidebar */}
+            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3 overflow-y-auto space-y-1 text-sm">
+              <div className="font-bold text-slate-400 mb-2 px-2 text-[11px] uppercase tracking-wider font-mono flex items-center justify-between">
+                <span>Tag Hierarchy</span>
+                <span className="text-[10px] text-slate-500">Anki Tree</span>
+              </div>
+              
               <button
                 onClick={() => setSearchQuery("")}
-                className={`w-full text-left px-2 py-1 rounded ${searchQuery === "" ? "bg-sky-600/30 text-sky-300 font-semibold" : "text-slate-400 hover:text-slate-200"}`}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition text-xs ${searchQuery === "" ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
               >
-                All Cards ({cards.length})
+                <span className="flex items-center gap-2">📂 <span>All Cards</span></span>
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full">{cards.length}</span>
               </button>
+
               <button
                 onClick={() => setSearchQuery("is:suspended")}
-                className={`w-full text-left px-2 py-1 rounded ${searchQuery === "is:suspended" ? "bg-amber-600/30 text-amber-300 font-semibold" : "text-amber-400/80 hover:text-amber-200"}`}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition text-xs ${searchQuery === "is:suspended" ? "bg-amber-600/30 text-amber-200 font-semibold border border-amber-500/40" : "text-amber-400/90 hover:bg-white/5 hover:text-amber-300"}`}
               >
-                Suspended ({cards.filter(c => c.suspended).length})
+                <span className="flex items-center gap-2">⏸️ <span>Suspended</span></span>
+                <span className="text-[10px] font-mono text-amber-400/80 bg-amber-950/60 px-2 py-0.5 rounded-full">{cards.filter(c => c.suspended).length}</span>
               </button>
-              <hr className="border-white/5 my-2" />
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => setSearchQuery(`tag:${tag}`)}
-                  className={`w-full text-left px-2 py-1 rounded truncate ${searchQuery === `tag:${tag}` ? "bg-sky-600/30 text-sky-300 font-semibold" : "text-slate-300 hover:text-white"}`}
-                >
-                  🏷️ {tag}
-                </button>
-              ))}
+
+              <hr className="border-white/10 my-2" />
+
+              <div className="space-y-0.5">
+                {Object.keys(tagTreeRoot).length === 0 ? (
+                  <p className="text-xs text-slate-500 px-2 italic">No tags present in cards</p>
+                ) : (
+                  Object.values(tagTreeRoot).map(node => (
+                    <TagTreeNode 
+                      key={node.fullTag} 
+                      node={node} 
+                      searchQuery={searchQuery} 
+                      setSearchQuery={setSearchQuery} 
+                    />
+                  ))
+                )}
+              </div>
             </div>
 
-            {/* Table View */}
-            <div className="md:col-span-3 bg-slate-900/60 border border-white/5 rounded-xl overflow-y-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-950/80 text-slate-400 sticky top-0 border-b border-white/10 font-mono">
+            {/* Main Table View */}
+            <div className="md:col-span-3 bg-slate-900/80 border border-white/10 rounded-2xl overflow-y-auto shadow-inner">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-slate-950/90 text-slate-300 sticky top-0 border-b border-white/10 font-mono text-xs uppercase tracking-wider">
                   <tr>
-                    <th className="p-2.5 w-8">
+                    <th className="p-3.5 w-10 text-center">
                       <input 
                         type="checkbox"
+                        className="w-4 h-4 accent-sky-500 rounded cursor-pointer"
                         checked={selectedCardIds.size === filteredCards.length && filteredCards.length > 0}
                         onChange={(e) => {
                           if (e.target.checked) setSelectedCardIds(new Set(filteredCards.map(c => c.id)));
@@ -523,46 +630,56 @@
                         }}
                       />
                     </th>
-                    <th className="p-2.5">Front</th>
-                    <th className="p-2.5">Back</th>
-                    <th className="p-2.5">Tags</th>
-                    <th className="p-2.5 w-20 text-center">Status</th>
+                    <th className="p-3.5">Front</th>
+                    <th className="p-3.5">Back</th>
+                    <th className="p-3.5">Tags</th>
+                    <th className="p-3.5 w-24 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredCards.map(c => (
-                    <tr 
-                      key={c.id} 
-                      className={`hover:bg-white/[0.02] ${c.suspended ? "opacity-40 bg-amber-950/10" : ""} ${selectedCardIds.has(c.id) ? "bg-sky-950/30" : ""}`}
-                    >
-                      <td className="p-2.5">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedCardIds.has(c.id)} 
-                          onChange={() => toggleSelectCard(c.id)}
-                        />
-                      </td>
-                      <td className="p-2.5 truncate max-w-[160px] text-slate-200" dangerouslySetInnerHTML={{ __html: c.fields?.[0] || "" }} />
-                      <td className="p-2.5 truncate max-w-[160px] text-slate-400" dangerouslySetInnerHTML={{ __html: c.fields?.[1] || "" }} />
-                      <td className="p-2.5 text-slate-400">
-                        {(c.tags || []).map(t => (
-                          <span key={t} className="inline-block bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded mr-1">
-                            {t}
-                          </span>
-                        ))}
-                      </td>
-                      <td className="p-2.5 text-center font-mono text-[10px]">
-                        {c.suspended ? (
-                          <span className="text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/20">Suspended</span>
-                        ) : (
-                          <span className="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/20">Active</span>
-                        )}
+                  {filteredCards.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="p-8 text-center text-slate-500 text-sm italic">
+                        No cards match the search query.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredCards.map(c => (
+                      <tr 
+                        key={c.id} 
+                        className={`hover:bg-white/[0.03] transition ${c.suspended ? "opacity-50 bg-amber-950/10" : ""} ${selectedCardIds.has(c.id) ? "bg-sky-950/40" : ""}`}
+                      >
+                        <td className="p-3.5 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 accent-sky-500 rounded cursor-pointer"
+                            checked={selectedCardIds.has(c.id)} 
+                            onChange={() => toggleSelectCard(c.id)}
+                          />
+                        </td>
+                        <td className="p-3.5 truncate max-w-[200px] text-slate-100 font-medium" dangerouslySetInnerHTML={{ __html: c.fields?.[0] || "" }} />
+                        <td className="p-3.5 truncate max-w-[200px] text-slate-300" dangerouslySetInnerHTML={{ __html: c.fields?.[1] || "" }} />
+                        <td className="p-3.5 text-slate-300">
+                          {(c.tags || []).map(t => (
+                            <span key={t} className="inline-block bg-slate-800 border border-white/10 text-slate-200 text-xs px-2 py-0.5 rounded-md mr-1.5 my-0.5 font-mono">
+                              {t}
+                            </span>
+                          ))}
+                        </td>
+                        <td className="p-3.5 text-center font-mono text-xs">
+                          {c.suspended ? (
+                            <span className="text-amber-400 bg-amber-950/70 px-2 py-1 rounded-md border border-amber-500/30 font-semibold">Suspended</span>
+                          ) : (
+                            <span className="text-emerald-400 bg-emerald-950/70 px-2 py-1 rounded-md border border-emerald-500/30 font-semibold">Active</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
           </div>
         </div>
       );
@@ -579,10 +696,10 @@
       if (!currentCard) {
         return (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-            <span className="text-4xl">🎉</span>
-            <h2 className="text-lg font-bold text-slate-100">Deck Complete!</h2>
-            <p className="text-slate-400 text-xs max-w-sm">You've reviewed all available cards for this target session.</p>
-            <button onClick={onBack} className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold shadow">
+            <span className="text-5xl">🎉</span>
+            <h2 className="text-xl font-bold text-slate-100">Deck Complete!</h2>
+            <p className="text-slate-400 text-sm max-w-sm">You've reviewed all available cards for this target session.</p>
+            <button onClick={onBack} className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-semibold shadow">
               Return to Decks
             </button>
           </div>
@@ -612,33 +729,33 @@
       };
 
       return (
-        <div className="max-w-2xl mx-auto h-full flex flex-col p-4 sm:p-6 justify-between">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
+        <div className="max-w-3xl mx-auto h-full flex flex-col p-4 sm:p-6 justify-between">
+          <div className="flex items-center justify-between text-sm text-slate-400 mb-4 font-mono">
             <span>{studyTarget.title}</span>
-            <span className="font-mono">{currentIndex + 1} / {targetCards.length}</span>
+            <span>{currentIndex + 1} / {targetCards.length}</span>
           </div>
 
-          <div className="flex-1 panel-card rounded-2xl p-6 flex flex-col justify-center items-center text-center overflow-y-auto mb-6 shadow-xl">
-            <div className="card-content text-slate-100 text-base sm:text-lg leading-relaxed w-full" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[0], true, currentCard.ord) }} />
+          <div className="flex-1 panel-card rounded-2xl p-8 flex flex-col justify-center items-center text-center overflow-y-auto mb-6 shadow-2xl">
+            <div className="card-content text-slate-100 text-lg sm:text-xl leading-relaxed w-full font-normal" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[0], true, currentCard.ord) }} />
             {showAnswer && (
               <>
-                <hr className="w-full border-white/10 my-6" />
-                <div className="card-content text-slate-300 text-sm sm:text-base leading-relaxed w-full" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[1], false, currentCard.ord) }} />
+                <hr className="w-full border-white/10 my-8" />
+                <div className="card-content text-slate-200 text-base sm:text-lg leading-relaxed w-full" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[1], false, currentCard.ord) }} />
               </>
             )}
           </div>
 
           <div className="safe-bottom-margin">
             {!showAnswer ? (
-              <button onClick={() => setShowAnswer(true)} className="w-full py-3 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold text-xs rounded-xl shadow-lg transition">
+              <button onClick={() => setShowAnswer(true)} className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold text-sm rounded-xl shadow-lg transition">
                 Show Answer
               </button>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => handleRating(1)} className="py-2.5 bg-rose-950/60 hover:bg-rose-900 border border-rose-500/30 text-rose-300 rounded-xl text-xs font-bold">Again</button>
-                <button onClick={() => handleRating(2)} className="py-2.5 bg-amber-950/60 hover:bg-amber-900 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-bold">Hard</button>
-                <button onClick={() => handleRating(3)} className="py-2.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold">Good</button>
-                <button onClick={() => handleRating(4)} className="py-2.5 bg-sky-950/60 hover:bg-sky-900 border border-sky-500/30 text-sky-300 rounded-xl text-xs font-bold">Easy</button>
+              <div className="grid grid-cols-4 gap-3">
+                <button onClick={() => handleRating(1)} className="py-3 bg-rose-950/70 hover:bg-rose-900 border border-rose-500/40 text-rose-300 rounded-xl text-sm font-bold">Again</button>
+                <button onClick={() => handleRating(2)} className="py-3 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded-xl text-sm font-bold">Hard</button>
+                <button onClick={() => handleRating(3)} className="py-3 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded-xl text-sm font-bold">Good</button>
+                <button onClick={() => handleRating(4)} className="py-3 bg-sky-950/70 hover:bg-sky-900 border border-sky-500/40 text-sky-300 rounded-xl text-sm font-bold">Easy</button>
               </div>
             )}
           </div>
@@ -683,25 +800,25 @@
 
       return (
         <div className="flex flex-col h-full w-full relative">
-          <header className="px-6 py-3 bg-slate-950/80 backdrop-blur-md border-b border-white/[0.06] flex items-center justify-between flex-shrink-0 z-20">
+          <header className="px-6 py-4 bg-slate-950/90 backdrop-blur-md border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20">
             <div className="flex items-center space-x-3">
-              <span className="text-xl">⚡</span>
+              <span className="text-2xl">⚡</span>
               <div>
-                <h1 className="text-sm font-bold tracking-tight text-slate-100">AnkiFlow</h1>
-                <p className="text-[10px] font-mono text-slate-400">{view.toUpperCase()} VIEW</p>
+                <h1 className="text-base font-bold tracking-tight text-slate-100">AnkiFlow</h1>
+                <p className="text-xs font-mono text-slate-400">{view.toUpperCase()} VIEW</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setView("decks")} 
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${view === "decks" ? "bg-sky-600 text-white" : "bg-white/[0.06] text-slate-300"}`}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${view === "decks" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 Decks
               </button>
               <button 
                 onClick={() => setView("browser")} 
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${view === "browser" ? "bg-sky-600 text-white" : "bg-white/[0.06] text-slate-300"}`}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${view === "browser" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 Card Browser
               </button>
@@ -711,8 +828,8 @@
           <main className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-                <div className="w-8 h-8 rounded-full border-2 border-slate-600 border-t-sky-400 animate-spin"></div>
-                <p className="text-slate-400 font-mono text-xs">Processing Package...</p>
+                <div className="w-10 h-10 rounded-full border-2 border-slate-600 border-t-sky-400 animate-spin"></div>
+                <p className="text-slate-400 font-mono text-sm">Processing Package...</p>
               </div>
             )}
 
@@ -759,31 +876,31 @@
         <div className="flex flex-col select-none">
           <div 
             onClick={() => onSelectDeck(node)}
-            className="group flex items-center justify-between p-3.5 my-1 panel-card hover:border-slate-600 rounded-xl cursor-pointer transition active:scale-[0.995]"
-            style={{ marginLeft: `${depth * 18}px` }}
+            className="group flex items-center justify-between p-4 my-1 panel-card hover:border-slate-500 rounded-2xl cursor-pointer transition active:scale-[0.995]"
+            style={{ marginLeft: `${depth * 20}px` }}
           >
             <div className="flex items-center space-x-3 flex-1 min-w-0 pr-3">
               {childNodes.length > 0 ? (
-                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-6 h-6 flex items-center justify-center rounded bg-white/[0.04] text-slate-400 text-[10px]">
+                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-slate-400 text-xs">
                   {isOpen ? "▼" : "▶"}
                 </button>
               ) : (
-                <span className="w-6 h-6 flex items-center justify-center text-slate-600 text-xs">🗂</span>
+                <span className="w-7 h-7 flex items-center justify-center text-slate-500 text-sm">🗂</span>
               )}
-              <span className="font-semibold text-slate-200 text-xs truncate group-hover:text-sky-300 transition">{node.displayName}</span>
+              <span className="font-semibold text-slate-100 text-sm truncate group-hover:text-sky-300 transition">{node.displayName}</span>
             </div>
 
-            <div className="flex items-center space-x-2 flex-shrink-0 text-xs font-mono font-bold">
-              <span className="text-sky-400 bg-sky-950/40 border border-sky-500/20 px-2 py-0.5 rounded">{node.newCount}</span>
-              <span className="text-rose-400 bg-rose-950/40 border border-rose-500/20 px-2 py-0.5 rounded">{node.learningCount}</span>
-              <span className="text-emerald-400 bg-emerald-950/40 border border-emerald-500/20 px-2 py-0.5 rounded">{node.reviewCount}</span>
-              <button onClick={(e) => { e.stopPropagation(); onExportDeck(node); }} title="Export .apkg" className="p-1 text-slate-500 hover:text-sky-400 text-xs ml-1">💾</button>
-              <button onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }} title="Delete" className="p-1 text-slate-600 hover:text-rose-400 text-xs">✕</button>
+            <div className="flex items-center space-x-2.5 flex-shrink-0 text-xs font-mono font-bold">
+              <span className="text-sky-400 bg-sky-950/50 border border-sky-500/30 px-2.5 py-1 rounded-lg">{node.newCount}</span>
+              <span className="text-rose-400 bg-rose-950/50 border border-rose-500/30 px-2.5 py-1 rounded-lg">{node.learningCount}</span>
+              <span className="text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-1 rounded-lg">{node.reviewCount}</span>
+              <button onClick={(e) => { e.stopPropagation(); onExportDeck(node); }} title="Export .apkg" className="p-1.5 text-slate-400 hover:text-sky-400 text-sm ml-1">💾</button>
+              <button onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }} title="Delete" className="p-1.5 text-slate-500 hover:text-rose-400 text-sm">✕</button>
             </div>
           </div>
 
           {childNodes.length > 0 && isOpen && (
-            <div className="flex flex-col border-l border-white/[0.06] ml-3 pl-1">
+            <div className="flex flex-col border-l border-white/10 ml-4 pl-1">
               {childNodes.map(child => (
                 <DeckTreeNode key={child.fullName} node={child} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} depth={depth + 1} />
               ))}
@@ -797,17 +914,17 @@
       const rootNodes = Object.values(useMemo(() => buildCleanDeckTree(decks, cards), [decks, cards]));
 
       return (
-        <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5 pb-20">
-          <div className="border border-dashed border-white/[0.12] bg-white/[0.01] hover:border-sky-500/40 rounded-xl p-5 text-center cursor-pointer transition">
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-20">
+          <div className="border border-dashed border-white/20 bg-white/[0.02] hover:border-sky-500/50 rounded-2xl p-6 text-center cursor-pointer transition">
             <input type="file" accept=".apkg" onChange={onUpload} id="file-input" className="hidden" />
-            <label htmlFor="file-input" className="cursor-pointer space-y-1 block">
-              <span className="text-xl block">📥</span>
-              <p className="font-semibold text-xs text-slate-200">Import Anki Package (.apkg)</p>
+            <label htmlFor="file-input" className="cursor-pointer space-y-2 block">
+              <span className="text-2xl block">📥</span>
+              <p className="font-semibold text-sm text-slate-100">Import Anki Package (.apkg)</p>
             </label>
           </div>
 
-          <div className="space-y-1">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2">Decks</h2>
+          <div className="space-y-2">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2 font-mono">Decks</h2>
             {rootNodes.map(node => (
               <DeckTreeNode key={node.fullName} node={node} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} />
             ))}
