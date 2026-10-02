@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AnkiFlow Tablet Edition (Offline Pure JS)</title>
-  
+  <title>AnkiFlow Tablet Edition (Standalone Fix)</title>
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -13,8 +13,12 @@
       theme: {
         extend: {
           colors: {
-            brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
-            again: '#ef4444',
+            brand: { 400: '#a855f7', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9' },
+            neonPink: '#ec4899',
+            neonCyan: '#06b6d4',
+            neonGreen: '#10b981',
+            neonYellow: '#f59e0b',
+            again: '#f43f5e',
             hard: '#f59e0b',
             good: '#10b981',
             easy: '#06b6d4'
@@ -30,9 +34,9 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- JSZip for APKG unpacking -->
+  <!-- JSZip for APKG extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   
   <!-- sql.js for SQLite decoding -->
@@ -41,87 +45,109 @@
   <style>
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #030712;
     }
-    .font-display {
+    .font-pop {
       font-family: 'Space Grotesk', sans-serif;
     }
-    
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #090d16; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
     ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: #374151; }
-    
-    /* Media elements in card contents */
+
+    /* Media styling inside Anki rendered cards */
     .card-content img {
       max-width: 100%;
       height: auto;
-      border-radius: 0.75rem;
-      margin: 1rem auto;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      border-radius: 1rem;
+      margin: 1.25rem auto;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
       display: block;
     }
     .card-content audio {
       width: 100%;
-      margin: 0.75rem 0;
+      margin: 1rem 0;
     }
-    
-    /* Dynamic Cloze Styling */
+
+    /* Cloze Styling */
     .cloze-placeholder {
       color: #38bdf8;
-      font-weight: 700;
+      font-weight: 800;
       background: rgba(56, 189, 248, 0.15);
-      padding: 0.15rem 0.5rem;
-      border-radius: 0.375rem;
-      border: 1.5px dashed #0284c7;
+      padding: 0.2rem 0.6rem;
+      border-radius: 0.5rem;
+      border: 2px dashed #0284c7;
       display: inline-block;
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
     }
     .cloze-revealed {
-      color: #4ade80;
-      font-weight: 700;
-      background: rgba(74, 222, 128, 0.18);
-      padding: 0.15rem 0.5rem;
-      border-radius: 0.375rem;
-      border: 1.5px solid #16a34a;
+      color: #34d399;
+      font-weight: 800;
+      background: rgba(52, 211, 153, 0.2);
+      padding: 0.2rem 0.6rem;
+      border-radius: 0.5rem;
+      border: 2px solid #10b981;
       display: inline-block;
-      box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+      box-shadow: 0 0 18px rgba(52, 211, 153, 0.35);
     }
     .cloze-inactive {
-      color: #e2e8f0;
+      color: #cbd5e1;
       font-weight: 600;
+    }
+
+    /* Neo-brutal pop glow elements */
+    .pop-card {
+      background: #0f172a;
+      border: 2px solid #1e293b;
+      box-shadow: 6px 6px 0px #1e293b;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .pop-card:hover {
+      border-color: #8b5cf6;
+      box-shadow: 8px 8px 0px #8b5cf6;
+      transform: translate(-2px, -2px);
+    }
+    .pop-btn {
+      box-shadow: 4px 4px 0px #000;
+      transition: all 0.15s ease;
+    }
+    .pop-btn:active {
+      box-shadow: 0px 0px 0px #000;
+      transform: translate(3px, 3px);
     }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans antialiased h-screen overflow-hidden select-none">
 
-  <!-- MAIN APP WRAPPER -->
   <div class="flex flex-col h-screen w-screen overflow-hidden">
     
-    <!-- HEADER NAVBAR -->
-    <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-md">
+    <!-- HEADER BAR -->
+    <header class="h-16 bg-gray-900/90 backdrop-blur-md border-b-2 border-gray-800 flex items-center justify-between px-6 flex-shrink-0 z-20">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-cyan-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
-          <i class="fa-solid fa-bolt text-white text-xl"></i>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-neonPink to-neonCyan flex items-center justify-center shadow-lg shadow-brand-500/30">
+          <i class="fa-solid fa-fire-flame-curved text-white text-xl"></i>
         </div>
-        <h1 class="text-xl font-black font-display tracking-wide bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
-          AnkiFlow <span class="text-xs font-sans text-brand-400 uppercase px-2 py-0.5 rounded-md bg-brand-500/10 font-extrabold border border-brand-500/20">Tablet Standalone</span>
+        <h1 class="text-xl font-black font-pop tracking-wider bg-gradient-to-r from-white via-purple-200 to-pink-400 bg-clip-text text-transparent">
+          ANKIFLOW <span class="text-xs font-sans text-neonCyan font-extrabold px-2 py-0.5 rounded-md bg-neonCyan/10 border border-neonCyan/30 uppercase">Tablet Pop</span>
         </h1>
       </div>
 
       <!-- Navigation Tabs -->
-      <div class="flex items-center gap-1.5 bg-gray-950 p-1.5 rounded-xl border border-gray-800/80">
-        <button id="nav-btn-decks" onclick="switchView('decks')" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 bg-gray-800 text-white shadow-inner">
-          <i class="fa-solid fa-layer-group"></i> Decks
+      <div class="flex items-center gap-2 bg-gray-950 p-1.5 rounded-2xl border border-gray-800">
+        <button id="nav-btn-decks" onclick="switchView('decks')" class="px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-brand-600 text-white shadow-md">
+          <i class="fa-solid fa-cubes"></i> Decks
         </button>
-        <button id="nav-btn-browser" onclick="switchView('browser')" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200">
+        <button id="nav-btn-browser" onclick="switchView('browser')" class="px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200">
           <i class="fa-solid fa-folder-tree"></i> Browser
         </button>
       </div>
 
-      <!-- File Import -->
-      <label class="cursor-pointer bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
-        <i class="fa-solid fa-file-import text-base"></i>
-        <span>Import .apkg</span>
+      <!-- Import Button -->
+      <label class="cursor-pointer bg-gradient-to-r from-brand-600 to-neonPink hover:brightness-110 text-white px-5 py-2.5 rounded-xl text-sm font-extrabold transition flex items-center gap-2 pop-btn">
+        <i class="fa-solid fa-file-arrow-up text-base"></i>
+        <span>Import APKG</span>
         <input type="file" id="apkg-file-input" accept=".apkg" onchange="handleFileUpload(event)" class="hidden" />
       </label>
     </header>
@@ -129,101 +155,104 @@
     <main class="flex-1 overflow-hidden relative">
       
       <!-- Loading Overlay -->
-      <div id="loading-overlay" class="hidden absolute inset-0 bg-gray-950/90 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-4">
-        <div class="w-14 h-14 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-        <p id="loading-msg" class="text-lg font-bold text-gray-200 font-display tracking-wide">Processing Anki Package...</p>
+      <div id="loading-overlay" class="hidden absolute inset-0 bg-gray-950/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-4">
+        <div class="relative w-16 h-16">
+          <div class="absolute inset-0 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="absolute inset-2 border-4 border-neonPink border-b-transparent rounded-full animate-spin"></div>
+        </div>
+        <p id="loading-msg" class="text-lg font-bold text-gray-200 font-pop tracking-wider">Loading Collection...</p>
       </div>
 
-      <!-- VIEW 1: DECKS VIEW -->
+      <!-- VIEW 1: DECKS CONTAINER -->
       <div id="view-decks" class="h-full overflow-y-auto p-6 md:p-8 max-w-6xl mx-auto">
         <div class="flex items-center justify-between mb-8">
           <div>
-            <h2 class="text-3xl font-extrabold text-white font-display">Study Collections</h2>
-            <p class="text-sm text-gray-400 mt-1">Select a deck below to start review session</p>
+            <h2 class="text-3xl font-black text-white font-pop tracking-tight">Decks Hub</h2>
+            <p class="text-sm text-gray-400 mt-1">Select a deck below to start your study session</p>
           </div>
-          <div class="text-sm bg-gray-900 border border-gray-800 px-4 py-2 rounded-xl text-gray-400 font-medium">
-            Total Cards: <span id="total-card-count" class="text-white font-bold">0</span>
+          <div class="text-sm bg-gray-900 border border-gray-800 px-4 py-2 rounded-2xl text-gray-400 font-bold">
+            Total Cards Loaded: <span id="total-card-count" class="text-neonCyan font-extrabold">0</span>
           </div>
         </div>
 
         <div id="decks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <!-- Populated by JavaScript -->
+          <!-- Dynamically populated -->
         </div>
       </div>
 
-      <!-- VIEW 2: REVIEW MODE VIEW -->
+      <!-- VIEW 2: REVIEW MODE CONTAINER -->
       <div id="view-review" class="hidden h-full flex flex-col justify-between max-w-4xl mx-auto p-4 md:p-6">
         <div class="flex items-center justify-between text-sm text-gray-400 mb-2">
-          <span id="review-deck-name" class="font-bold text-gray-200 flex items-center gap-2">
-            <i class="fa-solid fa-layer-group text-brand-500"></i> Deck
+          <span id="review-deck-name" class="font-extrabold text-gray-200 flex items-center gap-2 font-pop">
+            <i class="fa-solid fa-layer-group text-neonPink"></i> Deck Name
           </span>
-          <span class="font-medium bg-gray-900 border border-gray-800 px-3 py-1 rounded-lg">
-            Card <strong id="review-current-num" class="text-white">0</strong> of <strong id="review-total-num" class="text-white">0</strong>
+          <span class="font-bold bg-gray-900 border border-gray-800 px-3.5 py-1.5 rounded-xl">
+            Card <strong id="review-current-num" class="text-neonCyan">0</strong> / <strong id="review-total-num" class="text-white">0</strong>
           </span>
         </div>
 
-        <!-- Card Container -->
-        <div class="flex-1 bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 flex flex-col justify-center overflow-y-auto my-2 relative shadow-2xl">
+        <!-- Card Body -->
+        <div class="flex-1 bg-gray-900 border-2 border-gray-800 rounded-3xl p-6 md:p-10 flex flex-col justify-center overflow-y-auto my-2 relative shadow-2xl">
           <div id="review-front-content" class="card-content text-xl md:text-2xl text-gray-100 font-normal leading-relaxed text-center">
-            <!-- Front html -->
+            <!-- Front html content -->
           </div>
 
-          <div id="review-back-wrapper" class="hidden mt-8 pt-8 border-t border-gray-800/80">
+          <div id="review-back-wrapper" class="hidden mt-8 pt-8 border-t-2 border-gray-800/80">
             <div id="review-back-content" class="card-content text-xl md:text-2xl text-gray-200 font-normal leading-relaxed text-center">
-              <!-- Back html -->
+              <!-- Back html content -->
             </div>
           </div>
         </div>
 
         <!-- Rating Action Bar -->
         <div class="pt-2">
-          <button id="show-answer-btn" onclick="revealAnswer()" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-5 rounded-2xl text-xl shadow-xl shadow-brand-600/25 active:scale-[0.99] transition flex items-center justify-center gap-3 font-display">
-            <i class="fa-solid fa-eye"></i> Show Answer
+          <button id="show-answer-btn" onclick="revealAnswer()" class="w-full bg-gradient-to-r from-brand-600 via-neonPink to-brand-600 text-white font-black py-5 rounded-2xl text-xl shadow-xl pop-btn flex items-center justify-center gap-3 font-pop">
+            <i class="fa-solid fa-eye text-2xl"></i> SHOW ANSWER
           </button>
 
           <div id="rating-buttons" class="hidden grid grid-cols-4 gap-3">
-            <button onclick="submitRating(1)" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-extrabold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95">
-              <span class="text-xs uppercase tracking-wider font-extrabold opacity-80">Again</span>
+            <button onclick="submitRating(1)" class="bg-red-500/10 hover:bg-red-500/20 border-2 border-red-500/40 text-red-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
+              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Again</span>
               <span id="badge-again" class="text-xs bg-red-500/20 px-2.5 py-0.5 rounded-md text-red-300 font-bold">&lt;1m</span>
             </button>
-            <button onclick="submitRating(2)" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-extrabold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95">
-              <span class="text-xs uppercase tracking-wider font-extrabold opacity-80">Hard</span>
+            <button onclick="submitRating(2)" class="bg-amber-500/10 hover:bg-amber-500/20 border-2 border-amber-500/40 text-amber-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
+              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Hard</span>
               <span id="badge-hard" class="text-xs bg-amber-500/20 px-2.5 py-0.5 rounded-md text-amber-300 font-bold">1d</span>
             </button>
-            <button onclick="submitRating(3)" class="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-extrabold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95">
-              <span class="text-xs uppercase tracking-wider font-extrabold opacity-80">Good</span>
+            <button onclick="submitRating(3)" class="bg-emerald-500/10 hover:bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
+              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Good</span>
               <span id="badge-good" class="text-xs bg-emerald-500/20 px-2.5 py-0.5 rounded-md text-emerald-300 font-bold">1d</span>
             </button>
-            <button onclick="submitRating(4)" class="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-extrabold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95">
-              <span class="text-xs uppercase tracking-wider font-extrabold opacity-80">Easy</span>
+            <button onclick="submitRating(4)" class="bg-cyan-500/10 hover:bg-cyan-500/20 border-2 border-cyan-500/40 text-cyan-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
+              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Easy</span>
               <span id="badge-easy" class="text-xs bg-cyan-500/20 px-2.5 py-0.5 rounded-md text-cyan-300 font-bold">4d</span>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- VIEW 3: CARD BROWSER WITH DRAGGABLE SIDEBAR -->
+      <!-- VIEW 3: CARD BROWSER WITH RESIZABLE DRAGGABLE DIVIDER -->
       <div id="view-browser" class="hidden h-full flex overflow-hidden relative select-none">
         
         <!-- RESIZABLE TAG SIDEBAR -->
-        <aside id="tag-sidebar" style="width: 320px;" class="bg-gray-900 border-r border-gray-800 flex flex-col p-4 overflow-y-auto flex-shrink-0">
-          <div class="flex items-center justify-between mb-4 px-2">
-            <span class="text-xs font-black text-gray-400 uppercase tracking-widest font-display">Tags Tree</span>
-            <button id="clear-tag-btn" onclick="filterByTag(null)" class="hidden text-xs text-brand-400 hover:underline font-semibold">
-              Clear Tag
+        <aside id="tag-sidebar" style="width: 300px;" class="bg-gray-900 border-r-2 border-gray-800 flex flex-col p-4 overflow-y-auto flex-shrink-0">
+          <div class="flex items-center justify-between mb-4 px-1">
+            <span class="text-xs font-black text-gray-400 uppercase tracking-widest font-pop">Tags Explorer</span>
+            <button id="clear-tag-btn" onclick="filterByTag(null)" class="hidden text-xs text-neonPink hover:underline font-bold">
+              Clear Filter
             </button>
           </div>
           <div id="tag-tree-container" class="space-y-1">
-            <!-- Tag nodes inserted here -->
+            <!-- Tag Tree Nodes rendered here -->
           </div>
         </aside>
 
-        <!-- DRAGGABLE SIDEBAR RESIZER HANDLE -->
-        <div id="sidebar-resizer" class="w-2.5 hover:w-3 bg-gray-800 hover:bg-brand-500 cursor-col-resize flex-shrink-0 transition-all flex items-center justify-center z-20 active:bg-brand-500" title="Drag to resize tag column">
-          <div class="w-0.5 h-8 bg-gray-600 rounded-full"></div>
+        <!-- DRAGGABLE RESIZER HANDLE BAR -->
+        <div id="sidebar-resizer" class="w-3 hover:w-3.5 bg-gray-800 hover:bg-brand-500 cursor-col-resize flex-shrink-0 transition-all flex items-center justify-center z-20 active:bg-brand-400 shadow-xl" title="Drag to resize tag sidebar">
+          <div class="w-1 h-8 bg-gray-600 rounded-full"></div>
         </div>
 
-        <!-- MAIN TABLE VIEW -->
+        <!-- MAIN TABLE CONTENT -->
         <section class="flex-1 flex flex-col overflow-hidden p-6 bg-gray-950">
           <div class="mb-4 flex gap-3 items-center">
             <div class="relative flex-1">
@@ -231,28 +260,28 @@
               <input 
                 type="text" 
                 id="browser-search-input" 
-                placeholder="Search card text..." 
+                placeholder="Search card content..." 
                 oninput="renderBrowserTable()"
-                class="w-full bg-gray-900 border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition"
+                class="w-full bg-gray-900 border-2 border-gray-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition font-medium"
               />
             </div>
-            <div id="active-tag-indicator" class="hidden bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs px-3 py-2.5 rounded-xl font-bold flex items-center gap-2">
+            <div id="active-tag-indicator" class="hidden bg-neonPink/10 border border-neonPink/30 text-neonPink text-xs px-3.5 py-3 rounded-2xl font-bold flex items-center gap-2">
               <span id="active-tag-text">Tag: </span>
             </div>
           </div>
 
-          <div class="flex-1 overflow-y-auto border border-gray-800/80 rounded-2xl bg-gray-900/30">
+          <div class="flex-1 overflow-y-auto border-2 border-gray-800 rounded-2xl bg-gray-900/40">
             <table class="w-full text-left text-sm text-gray-300 border-collapse">
-              <thead class="bg-gray-900 text-xs uppercase text-gray-400 sticky top-0 border-b border-gray-800 font-display">
+              <thead class="bg-gray-900 text-xs uppercase text-gray-400 sticky top-0 border-b-2 border-gray-800 font-pop">
                 <tr>
-                  <th class="p-4">Front Preview</th>
-                  <th class="p-4">Deck</th>
+                  <th class="p-4">Front Content</th>
+                  <th class="p-4">Deck Name</th>
                   <th class="p-4">Tags</th>
                   <th class="p-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody id="browser-table-body" class="divide-y divide-gray-800/60">
-                <!-- Rows inserted here -->
+                <!-- Data rows injected here -->
               </tbody>
             </table>
           </div>
@@ -263,10 +292,8 @@
     </main>
   </div>
 
-  <!-- APPLICATION LOGIC IN PURE VANILLA JAVASCRIPT -->
   <script>
-
-    // --- INDEXEDDB MEDIA CACHE UTILITY ---
+    // --- INDEXEDDB MEDIA UTILITY ---
     const DB_NAME = 'AnkiFlowMediaDB';
     const STORE_NAME = 'media';
 
@@ -314,7 +341,7 @@
       });
     };
 
-    // --- STATE MANAGEMENT ---
+    // --- APPLICATION STATE ---
     let state = {
       view: 'decks',
       decks: {},
@@ -327,11 +354,8 @@
       objectUrlCache: new Map()
     };
 
-
-    // --- ENHANCED ANKI CLOZE PARSER ---
     function parseCloze(text, targetOrdinal, isBack) {
       if (!text) return '';
-      // Pattern matches standard {{c1::answer::hint}} or {{c1::answer}}
       const regex = /\{\{c(\d+)::([^:]*?)(?:::(.*?))?\}\}/gs;
 
       return text.replace(regex, (match, ord, answer, hint) => {
@@ -368,7 +392,6 @@
         .trim();
     }
 
-    // --- ANKI SM-2 SCHEDULING ---
     function calculateSM2(card, rating) {
       let interval = card.interval || 0;
       let reps = card.reps || 0;
@@ -419,8 +442,6 @@
       return `${nextCard.interval}d`;
     }
 
-
-    // --- RESIZABLE SIDEBAR EVENT LISTENERS ---
     let isDragging = false;
     const resizer = document.getElementById('sidebar-resizer');
     const tagSidebar = document.getElementById('tag-sidebar');
@@ -451,13 +472,11 @@
     window.addEventListener('mouseup', onStopDrag);
     window.addEventListener('touchend', onStopDrag);
 
-
-    // --- IMPORT APKG FILE PROCESSOR ---
     async function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      showLoading('Extracting APKG archive...');
+      showLoading('Unpacking APKG archive...');
 
       try {
         await clearMediaDB();
@@ -465,7 +484,7 @@
 
         const zip = await JSZip.loadAsync(file);
         
-        showLoading('Processing & caching media assets...');
+        showLoading('Extracting media files...');
         const mediaFile = zip.file('media');
         if (mediaFile) {
           const mediaJsonText = await mediaFile.async('text');
@@ -480,10 +499,10 @@
           }
         }
 
-        showLoading('Parsing SQLite database...');
+        showLoading('Reading SQLite Database Schema...');
         let dbFile = zip.file('collection.anki2') || zip.file('collection.anki21');
         if (!dbFile) {
-          throw new Error('Invalid APKG file: collection database not found.');
+          throw new Error('Invalid APKG package: collection database not found.');
         }
 
         const dbBuffer = await dbFile.async('arraybuffer');
@@ -493,29 +512,58 @@
         const db = new SQL.Database(new Uint8Array(dbBuffer));
 
         const parsedDecks = {};
-        const parsedCards = [];
 
-        const decksQuery = db.exec("SELECT val FROM col");
-        if (decksQuery.length > 0) {
-          const colVal = JSON.parse(decksQuery[0].values[0][0]);
-          const deckMeta = colVal.decks || {};
-          Object.values(deckMeta).forEach(d => {
-            parsedDecks[d.id] = d.name;
-          });
+        // ROBUST SCHEMA-SAFE DECK PARSER (Resolves "no such column val" error)
+        try {
+          // Attempt 1: Legacy Anki schema (col.decks)
+          const colDecksQuery = db.exec("SELECT decks FROM col");
+          if (colDecksQuery.length > 0 && colDecksQuery[0].values[0][0]) {
+            const decksJson = JSON.parse(colDecksQuery[0].values[0][0]);
+            Object.values(decksJson).forEach(d => {
+              parsedDecks[d.id] = d.name;
+            });
+          }
+        } catch (e1) {
+          try {
+            // Attempt 2: Anki 2.1.x schema (col.val)
+            const colValQuery = db.exec("SELECT val FROM col");
+            if (colValQuery.length > 0 && colValQuery[0].values[0][0]) {
+              const colVal = JSON.parse(colValQuery[0].values[0][0]);
+              const deckMeta = colVal.decks || {};
+              Object.values(deckMeta).forEach(d => {
+                parsedDecks[d.id] = d.name;
+              });
+            }
+          } catch (e2) {
+            try {
+              // Attempt 3: Anki 21 modern schema (config table)
+              const configQuery = db.exec("SELECT val FROM config WHERE key = 'decks'");
+              if (configQuery.length > 0 && configQuery[0].values[0][0]) {
+                const deckMeta = JSON.parse(configQuery[0].values[0][0]);
+                Object.values(deckMeta).forEach(d => {
+                  parsedDecks[d.id] = d.name;
+                });
+              }
+            } catch (e3) {
+              console.warn("Could not parse deck metadata JSON; defaulting to generic deck names.");
+            }
+          }
         }
 
+        const parsedCards = [];
+
+        // Fetch cards and notes safely
         const notesStmt = db.prepare(`
-          SELECT cards.id, cards.did, cards.ord, notes.flds, notes.sfld, notes.tags, models.css
+          SELECT cards.id AS cid, cards.did, cards.ord, notes.flds, notes.tags
           FROM cards 
-          JOIN notes ON cards.nid = notes.id 
-          JOIN models ON notes.mid = models.id
+          JOIN notes ON cards.nid = notes.id
         `);
 
         while (notesStmt.step()) {
           const row = notesStmt.getAsObject();
-          const fields = row.flds.split('\x1f');
+          const fields = row.flds ? row.flds.split('\x1f') : [''];
           const tags = row.tags ? row.tags.trim().split(/\s+/).filter(Boolean) : [];
-          const deckName = parsedDecks[row.did] || 'Default';
+          const deckName = parsedDecks[row.did] || 'Default Deck';
 
           const frontField = fields[0] || '';
           const backField = fields.slice(1).join('<br>') || '';
@@ -525,7 +573,7 @@
           if (clozeOrdinals.length > 0) {
             clozeOrdinals.forEach(ord => {
               parsedCards.push({
-                id: `${row.id}_c${ord}`,
+                id: `${row.cid}_c${ord}`,
                 deckId: row.did,
                 deckName: deckName,
                 front: frontField,
@@ -542,7 +590,7 @@
             });
           } else {
             parsedCards.push({
-              id: row.id,
+              id: row.cid,
               deckId: row.did,
               deckName: deckName,
               front: frontField,
@@ -581,8 +629,6 @@
       }
     }
 
-
-    // --- UI NAVIGATION & VIEW RENDERERS ---
     function switchView(targetView) {
       state.view = targetView;
       
@@ -590,16 +636,16 @@
       document.getElementById('view-review').classList.add('hidden');
       document.getElementById('view-browser').classList.add('hidden');
 
-      document.getElementById('nav-btn-decks').className = "px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200";
-      document.getElementById('nav-btn-browser').className = "px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200";
+      document.getElementById('nav-btn-decks').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200";
+      document.getElementById('nav-btn-browser').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200";
 
       if (targetView === 'decks') {
         document.getElementById('view-decks').classList.remove('hidden');
-        document.getElementById('nav-btn-decks').className = "px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 bg-gray-800 text-white shadow-inner";
+        document.getElementById('nav-btn-decks').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-brand-600 text-white shadow-md";
         renderDecksView();
       } else if (targetView === 'browser') {
         document.getElementById('view-browser').classList.remove('hidden');
-        document.getElementById('nav-btn-browser').className = "px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 bg-gray-800 text-white shadow-inner";
+        document.getElementById('nav-btn-browser').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-brand-600 text-white shadow-md";
         renderTagTree();
         renderBrowserTable();
       } else if (targetView === 'review') {
@@ -615,11 +661,11 @@
       if (deckEntries.length === 0) {
         grid.innerHTML = `
           <div class="col-span-full border-2 border-dashed border-gray-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center my-12 bg-gray-900/20">
-            <div class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-600 text-3xl mb-4">
-              <i class="fa-solid fa-box-open"></i>
+            <div class="w-20 h-20 rounded-2xl bg-gray-900 border-2 border-gray-800 flex items-center justify-center text-neonPink text-3xl mb-4">
+              <i class="fa-solid fa-folder-open"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-200 mb-2 font-display">No Decks Imported</h3>
-            <p class="text-gray-500 max-w-sm mb-6 text-sm">Upload an Anki package (.apkg file) using the import button in the top right header.</p>
+            <h3 class="text-2xl font-black text-gray-200 mb-2 font-pop">No Decks Loaded</h3>
+            <p class="text-gray-500 max-w-sm mb-6 text-sm">Upload your Anki package (.apkg file) using the import button in the top right header.</p>
           </div>
         `;
         return;
@@ -627,26 +673,24 @@
 
       deckEntries.forEach(([deckName, count]) => {
         const cardEl = document.createElement('div');
-        cardEl.className = "bg-gray-900/60 border border-gray-800 hover:border-gray-700 rounded-2xl p-6 transition flex flex-col justify-between hover:shadow-2xl hover:shadow-brand-500/5 group";
+        cardEl.className = "pop-card rounded-3xl p-6 flex flex-col justify-between group";
         cardEl.innerHTML = `
           <div>
             <div class="flex items-start justify-between mb-4">
-              <h3 class="text-lg font-bold text-gray-100 group-hover:text-brand-400 transition line-clamp-2 font-display">${deckName}</h3>
-              <span class="bg-gray-800 text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-700/80">
-                ${count} cards
+              <h3 class="text-xl font-bold text-gray-100 group-hover:text-neonCyan transition line-clamp-2 font-pop">${deckName}</h3>
+              <span class="bg-gray-800 text-neonPink text-xs font-black px-3 py-1 rounded-full border border-gray-700">
+                ${count} CARDS
               </span>
             </div>
           </div>
-          <button onclick="startReview('${deckName.replace(/'/g, "\\'")}')" class="w-full mt-4 bg-gray-800 group-hover:bg-brand-600 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-md active:scale-95">
-            <i class="fa-solid fa-play text-xs"></i> Study Deck
+          <button onclick="startReview('${deckName.replace(/'/g, "\\'")}')" class="w-full mt-6 bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-3.5 rounded-2xl transition flex items-center justify-center gap-2 text-sm pop-btn font-pop">
+            <i class="fa-solid fa-play text-xs"></i> STUDY NOW
           </button>
         `;
         grid.appendChild(cardEl);
       });
     }
 
-
-    // --- REVIEW CONTROLLER ---
     function startReview(deckName) {
       state.selectedDeck = deckName;
       state.reviewQueue = state.cards.filter(c => c.deckName === deckName && !c.suspended);
@@ -654,7 +698,7 @@
       state.showAnswer = false;
 
       if (state.reviewQueue.length === 0) {
-        alert("No active cards to review in this deck.");
+        alert("No active non-suspended cards to review in this deck.");
         return;
       }
 
@@ -691,7 +735,7 @@
       const card = state.reviewQueue[state.currentCardIndex];
       if (!card) return;
 
-      document.getElementById('review-deck-name').innerHTML = `<i class="fa-solid fa-layer-group text-brand-500"></i> ${card.deckName}`;
+      document.getElementById('review-deck-name').innerHTML = `<i class="fa-solid fa-layer-group text-neonPink"></i> ${card.deckName}`;
       document.getElementById('review-current-num').innerText = state.currentCardIndex + 1;
       document.getElementById('review-total-num').innerText = state.reviewQueue.length;
 
@@ -715,7 +759,7 @@
       document.getElementById('show-answer-btn').classList.remove('hidden');
       document.getElementById('rating-buttons').classList.add('hidden');
 
-      // Update Interval Badges
+      // Update Rating Interval Badges
       document.getElementById('badge-again').innerText = getIntervalBadgeText(card, 1);
       document.getElementById('badge-hard').innerText = getIntervalBadgeText(card, 2);
       document.getElementById('badge-good').innerText = getIntervalBadgeText(card, 3);
@@ -751,8 +795,6 @@
       }
     }
 
-
-    // --- BROWSER & TAG TREE CONTROLLER ---
     function buildTagTreeData() {
       const tree = {};
       state.cards.forEach(card => {
@@ -787,21 +829,21 @@
 
         const wrapper = document.createElement('div');
         wrapper.style.paddingLeft = `${depth * 10}px`;
-        wrapper.className = "my-0.5";
+        wrapper.className = "my-1";
 
         const isSelected = state.selectedTag === node._fullTag;
 
         wrapper.innerHTML = `
-          <div class="group flex items-center justify-between p-2 rounded-xl cursor-pointer text-sm font-medium transition ${
-            isSelected ? 'bg-brand-600 text-white shadow-md' : 'hover:bg-gray-800/80 text-gray-300'
+          <div class="group flex items-center justify-between p-2 rounded-xl cursor-pointer text-sm font-semibold transition ${
+            isSelected ? 'bg-gradient-to-r from-brand-600 to-neonPink text-white shadow-lg' : 'hover:bg-gray-800/80 text-gray-300'
           }">
             <div class="flex items-center gap-2 min-w-0 flex-1" onclick="filterByTag('${node._fullTag}')">
-              <i class="fa-solid fa-tag text-xs text-brand-400"></i>
-              <span class="truncate font-medium">${name}</span>
+              <i class="fa-solid fa-hashtag text-xs text-neonCyan"></i>
+              <span class="truncate">${name}</span>
             </div>
             <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-              <span class="text-xs bg-gray-950/50 px-2 py-0.5 rounded-md text-gray-400 border border-gray-800">${tagCards.length}</span>
-              <button onclick="toggleTagSuspend('${node._fullTag}', ${!allSuspended})" class="p-1 rounded hover:bg-gray-700 transition text-xs ${allSuspended ? 'text-amber-400 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100'}">
+              <span class="text-xs bg-gray-950/60 px-2 py-0.5 rounded-md text-gray-400 border border-gray-800 font-bold">${tagCards.length}</span>
+              <button onclick="toggleTagSuspend('${node._fullTag}', ${!allSuspended})" class="p-1.5 rounded-lg hover:bg-gray-700 transition text-xs ${allSuspended ? 'text-amber-400 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100'}" title="${allSuspended ? 'Unsuspend tag cards' : 'Suspend tag cards'}">
                 <i class="fa-solid ${allSuspended ? 'fa-pause' : 'fa-play'}"></i>
               </button>
             </div>
@@ -877,19 +919,19 @@
 
       filtered.forEach(card => {
         const tr = document.createElement('tr');
-        tr.className = `hover:bg-gray-800/40 transition ${card.suspended ? 'opacity-50 bg-gray-950/40' : ''}`;
+        tr.className = `hover:bg-gray-800/40 transition ${card.suspended ? 'opacity-50 bg-gray-950/50' : ''}`;
         
-        const tagsHtml = card.tags.map(t => `<span class="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded border border-gray-700/60">${t}</span>`).join(' ');
+        const tagsHtml = card.tags.map(t => `<span class="bg-gray-800 text-gray-300 text-xs px-2.5 py-0.5 rounded-lg border border-gray-700/60 font-semibold">${t}</span>`).join(' ');
 
         tr.innerHTML = `
           <td class="p-4 max-w-md truncate font-medium text-gray-200">${stripHTML(card.front)}</td>
           <td class="p-4 text-gray-400 whitespace-nowrap font-medium">${card.deckName}</td>
           <td class="p-4"><div class="flex flex-wrap gap-1">${tagsHtml}</div></td>
           <td class="p-4 text-center">
-            <button onclick="toggleCardSuspend('${card.id}')" class="px-2.5 py-1 rounded text-xs font-bold transition ${
+            <button onclick="toggleCardSuspend('${card.id}')" class="px-3 py-1 rounded-xl text-xs font-black transition ${
               card.suspended ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
             }">
-              ${card.suspended ? 'Suspended' : 'Active'}
+              ${card.suspended ? 'SUSPENDED' : 'ACTIVE'}
             </button>
           </td>
         `;
@@ -903,7 +945,6 @@
       renderTagTree();
     }
 
-    // --- HELPER FUNCTIONS ---
     function showLoading(msg) {
       document.getElementById('loading-msg').innerText = msg;
       document.getElementById('loading-overlay').classList.remove('hidden');
@@ -913,7 +954,6 @@
       document.getElementById('loading-overlay').classList.add('hidden');
     }
 
-    // INITIALIZE APPLICATION
     window.onload = function() {
       renderDecksView();
     };
