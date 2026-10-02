@@ -1,17 +1,19 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="dark h-full">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#090d16" />
-  <title>AnkiFlow</title>
+  <title>AnkiFlow - Tablet & iPad Flashcards</title>
 
+  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -19,91 +21,112 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Inter"', 'sans-serif'],
+            sans: ['"Inter"', 'system-ui', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            ankiBg: '#090d16',
+            ankiCard: '#131b2e',
+            ankiAgain: '#f43f5e',
+            ankiHard: '#f59e0b',
+            ankiGood: '#10b981',
+            ankiEasy: '#06b6d4',
           }
         }
       }
     }
   </script>
 
+  <!-- External CDNs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    body {
-      background-color: #0b0f19;
+    html, body {
+      height: 100%;
+      background-color: #090d16;
       color: #f8fafc;
       font-family: "Inter", -apple-system, sans-serif;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
       overflow: hidden;
     }
-    .panel-card {
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+
+    .card-prose {
+      user-select: text;
+      line-height: 1.7;
+      font-size: 1.2rem;
     }
+    @media (min-width: 768px) {
+      .card-prose {
+        font-size: 1.45rem;
+        line-height: 1.8;
+      }
+    }
+
+    /* Media Handling inside Flashcards */
+    .card-prose img {
+      max-width: 100%;
+      max-height: 52vh;
+      object-fit: contain;
+      border-radius: 0.875rem;
+      margin: 1.25rem auto;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      display: block;
+      background-color: #0d1322;
+    }
+
+    /* Anki Cloze Styling */
     .cloze-bracket {
       color: #38bdf8;
       font-weight: 700;
       background: rgba(56, 189, 248, 0.15);
-      border: 1px dashed rgba(56, 189, 248, 0.4);
-      padding: 3px 10px;
-      border-radius: 6px;
+      border: 1.5px dashed rgba(56, 189, 248, 0.5);
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.5rem;
     }
     .cloze-reveal {
       color: #34d399;
       font-weight: 700;
-      background: rgba(52, 211, 153, 0.18);
-      border: 1px solid rgba(52, 211, 153, 0.45);
-      padding: 3px 10px;
-      border-radius: 6px;
+      background: rgba(52, 211, 153, 0.2);
+      border: 1.5px solid rgba(52, 211, 153, 0.5);
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.5rem;
       display: inline-block;
     }
-    .card-content img {
-      max-width: 100%;
-      max-height: 48vh;
-      object-fit: contain;
-      border-radius: 0.85rem;
-      margin: 1.25rem auto;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* iPad Safe Area Bottom Spacing */
+    .safe-pb {
+      padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
     }
-    .safe-bottom-margin {
-      margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
-    }
+
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
     }
     ::-webkit-scrollbar-track {
       background: rgba(15, 23, 42, 0.6);
     }
     ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
     }
   </style>
 </head>
-<body class="h-screen w-screen flex flex-col relative text-base">
-  <div id="root" class="h-full w-full flex flex-col relative z-10"></div>
+<body class="h-full w-full flex flex-col relative text-slate-100">
+  <div id="root" class="h-full w-full flex flex-col"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
 
-    const DB_NAME = "AnkiLiteDB";
-    const DB_VERSION = 1;
+    const DB_NAME = "AnkiFlowTabletDB";
+    const DB_VERSION = 3;
 
     function openDB() {
       return new Promise((resolve, reject) => {
@@ -115,7 +138,7 @@
             const cardStore = db.createObjectStore("cards", { keyPath: "id" });
             cardStore.createIndex("did", "did", { unique: false });
           }
-          if (!db.objectStoreNames.contains("media")) db.createObjectStore("media", { keyPath: "name" });
+          if (!db.objectStoreNames.contains("media")) db.createObjectStore("media", { keyPath: "filename" });
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
@@ -179,6 +202,97 @@
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
+    }
+
+    async function parseApkg(file) {
+      const zip = await JSZip.loadAsync(file);
+      
+      // 1. Process Media Map File (maps internal numeric keys to actual media filenames)
+      const mediaMapFile = zip.file("media");
+      const mediaMapping = mediaMapFile ? JSON.parse(await mediaMapFile.async("string")) : {};
+      const mediaBlobStore = [];
+
+      for (const [numericKey, rawFileName] of Object.entries(mediaMapping)) {
+        const zippedMediaFile = zip.file(numericKey);
+        if (zippedMediaFile) {
+          const blob = await zippedMediaFile.async("blob");
+          const dataUrl = await new Promise((res) => {
+            const reader = new FileReader();
+            reader.onloadend = () => res(reader.result);
+            reader.readAsDataURL(blob);
+          });
+          
+          // Store both original filename and decoded filename for matching
+          const decodedName = decodeURIComponent(rawFileName);
+          mediaBlobStore.push({ filename: rawFileName, dataUrl });
+          if (decodedName !== rawFileName) {
+            mediaBlobStore.push({ filename: decodedName, dataUrl });
+          }
+        }
+      }
+
+      if (mediaBlobStore.length > 0) {
+        await dbPutBatch("media", mediaBlobStore);
+      }
+
+      // 2. Load SQLite Database File
+      let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
+      if (!dbFile) throw new Error("Missing SQLite collection file in .apkg archive.");
+
+      const dbBuffer = await dbFile.async("uint8array");
+      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
+      const db = new SQL.Database(dbBuffer);
+
+      const colRes = db.exec("SELECT decks, models FROM col");
+      const decksJson = JSON.parse(colRes[0].values[0][0]);
+
+      const decks = [];
+      for (const [id, d] of Object.entries(decksJson)) {
+        if (d.name && d.name !== "Default") {
+          const normalizedName = d.name.replace(/[\x1f\u001f]/g, "::").trim();
+          decks.push({ id: String(d.id), name: normalizedName });
+        }
+      }
+
+      const notesRes = db.exec("SELECT id, mid, flds, tags FROM notes");
+      const notesMap = new Map();
+      if (notesRes.length > 0) {
+        notesRes[0].values.forEach(row => {
+          const [id, mid, flds, tags] = row;
+          const fields = flds.split("\x1f");
+          const tagList = tags ? tags.trim().split(/\s+/).filter(Boolean) : [];
+          notesMap.set(id, { id, fields, tags: tagList });
+        });
+      }
+
+      const cardsRes = db.exec("SELECT id, nid, did, ord, queue, factor, reps, ivl, due FROM cards");
+      const cards = [];
+      if (cardsRes.length > 0) {
+        cardsRes[0].values.forEach(row => {
+          const [id, nid, did, ord, queue, factor, reps, ivl, due] = row;
+          const note = notesMap.get(nid);
+          if (note) {
+            cards.push({
+              id: String(id),
+              nid: String(nid),
+              did: String(did),
+              ord,
+              fields: note.fields,
+              tags: note.tags,
+              suspended: queue === -1,
+              interval: ivl || 0,
+              easeFactor: (factor || 2500) / 1000,
+              reps: reps || 0,
+              dueDate: due || Date.now()
+            });
+          }
+        });
+      }
+
+      db.close();
+      if (decks.length === 0) decks.push({ id: "1", name: file.name.replace(".apkg", "") });
+      await dbPutBatch("decks", decks);
+      await dbPutBatch("cards", cards);
     }
 
     async function exportDeckToApkg(deckName, cards) {
@@ -253,71 +367,11 @@
       URL.revokeObjectURL(url);
     }
 
-    async function parseApkg(file) {
-      const zip = await JSZip.loadAsync(file);
-      let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
-      if (!dbFile) throw new Error("Missing SQLite deck file in .apkg archive.");
-
-      const dbBuffer = await dbFile.async("uint8array");
-      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
-      const db = new SQL.Database(dbBuffer);
-
-      const colRes = db.exec("SELECT decks, models FROM col");
-      const decksJson = JSON.parse(colRes[0].values[0][0]);
-      const modelsJson = JSON.parse(colRes[0].values[0][1]);
-
-      const decks = [];
-      for (const [id, d] of Object.entries(decksJson)) {
-        if (d.name && d.name !== "Default") {
-          const normalizedName = d.name.replace(/[\x1f\u001f]/g, "::").trim();
-          decks.push({ id: String(d.id), name: normalizedName });
-        }
-      }
-
-      const notesRes = db.exec("SELECT id, mid, flds, tags FROM notes");
-      const notesMap = new Map();
-      if (notesRes.length > 0) {
-        notesRes[0].values.forEach(row => {
-          const [id, mid, flds, tags] = row;
-          const fields = flds.split("\x1f");
-          const tagList = tags ? tags.trim().split(/\s+/).filter(Boolean) : [];
-          notesMap.set(id, { id, fields, tags: tagList });
-        });
-      }
-
-      const cardsRes = db.exec("SELECT id, nid, did, ord, queue, factor, reps, ivl, due FROM cards");
-      const cards = [];
-      if (cardsRes.length > 0) {
-        cardsRes[0].values.forEach(row => {
-          const [id, nid, did, ord, queue, factor, reps, ivl, due] = row;
-          const note = notesMap.get(nid);
-          if (note) {
-            cards.push({
-              id: String(id),
-              nid: String(nid),
-              did: String(did),
-              ord,
-              fields: note.fields,
-              tags: note.tags,
-              suspended: queue === -1,
-              interval: ivl || 0,
-              easeFactor: (factor || 2500) / 1000,
-              reps: reps || 0,
-              dueDate: due || Date.now()
-            });
-          }
-        });
-      }
-
-      db.close();
-      if (decks.length === 0) decks.push({ id: "1", name: file.name.replace(".apkg", "") });
-      await dbPutBatch("decks", decks);
-      await dbPutBatch("cards", cards);
-    }
-
-    function renderCardField(html, isFront = true, clozeOrd = 0) {
+    function renderCardField(html, isFront = true, clozeOrd = 0, mediaMap = {}) {
       if (!html) return "";
       let processed = html;
+
+      // 1. Process Anki Cloze Deletions {{c1::text::hint}}
       const clozeRegex = /\{\{c(\d+)::([^:}]+)(?:::([^}]+))?\}\}/g;
       processed = processed.replace(clozeRegex, (match, num, text, hint) => {
         const isCurrentCloze = parseInt(num) === (clozeOrd + 1);
@@ -327,7 +381,53 @@
           return isCurrentCloze ? `<span class="cloze-reveal">${text}</span>` : text;
         }
       });
+
+      // 2. Extract and replace img src attributes with IndexedDB stored Data URLs
+      processed = processed.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (fullTag, srcValue) => {
+        let cleanName = srcValue.split('/').pop().split('?')[0];
+        try {
+          cleanName = decodeURIComponent(cleanName);
+        } catch(e) {}
+
+        const matchedUrl = mediaMap[cleanName] || mediaMap[encodeURIComponent(cleanName)] || mediaMap[srcValue];
+        
+        if (matchedUrl) {
+          return fullTag.replace(`src="${srcValue}"`, `src="${matchedUrl}"`).replace(`src='${srcValue}'`, `src="${matchedUrl}"`);
+        }
+        return fullTag;
+      });
+
       return processed;
+    }
+
+    function calculateIntervals(card) {
+      const reps = card.reps || 0;
+      const interval = card.interval || 0;
+      const ease = card.easeFactor || 2.5;
+
+      if (reps === 0 || interval === 0) {
+        // Learning Steps for New Cards
+        return {
+          again: { label: "<10m", ivl: 0, ease: Math.max(1.3, ease - 0.2) },
+          hard: { label: "1d", ivl: 1, ease: Math.max(1.3, ease - 0.15) },
+          good: { label: "1d", ivl: 1, ease: ease },
+          easy: { label: "4d", ivl: 4, ease: ease + 0.15 }
+        };
+      }
+
+      // Review Card Multipliers
+      const hardIvl = Math.max(1, Math.round(interval * 1.2));
+      const goodIvl = Math.max(hardIvl + 1, Math.round(interval * ease));
+      const easyIvl = Math.max(goodIvl + 1, Math.round(interval * ease * 1.3));
+
+      const formatDays = (d) => d < 30 ? `${d}d` : `${(d / 30).toFixed(1)}m`;
+
+      return {
+        again: { label: "1d", ivl: 1, ease: Math.max(1.3, ease - 0.2) },
+        hard: { label: formatDays(hardIvl), ivl: hardIvl, ease: Math.max(1.3, ease - 0.15) },
+        good: { label: formatDays(goodIvl), ivl: goodIvl, ease: ease },
+        easy: { label: formatDays(easyIvl), ivl: easyIvl, ease: ease + 0.15 }
+      };
     }
 
     function buildCleanDeckTree(decks, cards) {
@@ -381,10 +481,8 @@
       return root.children;
     }
 
-    // Helper to build recursive tag hierarchy tree from 'parent::child' tags
     function buildTagTree(cards) {
       const root = { children: {}, count: 0 };
-
       cards.forEach(card => {
         const tags = card.tags || [];
         tags.forEach(fullTag => {
@@ -407,43 +505,32 @@
           });
         });
       });
-
       return root.children;
     }
 
-    // Recursive Tag Item UI component (Desktop Anki style)
     function TagTreeNode({ node, searchQuery, setSearchQuery, depth = 0 }) {
       const [isOpen, setIsOpen] = useState(false);
       const childNodes = Object.values(node.children);
       const isSelected = searchQuery === `tag:${node.fullTag}`;
 
-      const toggleOpen = (e) => {
-        e.stopPropagation();
-        setIsOpen(!isOpen);
-      };
-
       return (
         <div className="flex flex-col select-none">
           <div 
             onClick={() => setSearchQuery(`tag:${node.fullTag}`)}
-            className={`group flex items-center justify-between py-1 px-2 rounded-lg cursor-pointer transition text-xs font-sans ${isSelected ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
-            style={{ paddingLeft: `${depth * 14 + 8}px` }}
+            className={`group flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer transition text-sm font-sans ${isSelected ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+            style={{ paddingLeft: `${depth * 14 + 10}px` }}
           >
-            <div className="flex items-center space-x-1.5 truncate">
+            <div className="flex items-center space-x-2 truncate pr-2">
               {childNodes.length > 0 ? (
-                <button 
-                  onClick={toggleOpen} 
-                  className="w-4 h-4 flex items-center justify-center text-[10px] text-slate-400 hover:text-white"
-                >
+                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-5 h-5 flex items-center justify-center text-xs text-slate-400 hover:text-white">
                   {isOpen ? "◢" : "▶"}
                 </button>
               ) : (
-                <span className="w-4 h-4 flex items-center justify-center text-[11px] text-slate-500">🏷️</span>
+                <span className="w-4 h-4 flex items-center justify-center text-xs text-slate-500">🏷️</span>
               )}
               <span className="truncate">{node.name}</span>
             </div>
-
-            <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-1.5 py-0.2 rounded-full ml-2 flex-shrink-0">
+            <span className="text-[11px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full flex-shrink-0">
               {node.count}
             </span>
           </div>
@@ -451,13 +538,7 @@
           {childNodes.length > 0 && isOpen && (
             <div className="flex flex-col border-l border-white/10 ml-3">
               {childNodes.map(child => (
-                <TagTreeNode 
-                  key={child.fullTag} 
-                  node={child} 
-                  searchQuery={searchQuery} 
-                  setSearchQuery={setSearchQuery} 
-                  depth={depth + 1} 
-                />
+                <TagTreeNode key={child.fullTag} node={child} searchQuery={searchQuery} setSearchQuery={setSearchQuery} depth={depth + 1} />
               ))}
             </div>
           )}
@@ -465,7 +546,6 @@
       );
     }
 
-    // --- CARD BROWSER COMPONENT WITH DESKTOP TAG SIDEBAR ---
     function BrowserScreen({ cards, decks, onCardUpdate }) {
       const [searchQuery, setSearchQuery] = useState("");
       const [selectedCardIds, setSelectedCardIds] = useState(new Set());
@@ -522,107 +602,98 @@
 
       return (
         <div className="flex flex-col h-full max-w-7xl mx-auto p-4 md:p-6 gap-5">
-          {/* Top Search Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-3.5 rounded-2xl border border-white/10 shadow-lg">
+          {/* Top Search & Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-4 rounded-2xl border border-white/10 shadow-lg">
             <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-              <span className="text-slate-400 text-base ml-1">🔍</span>
+              <span className="text-slate-400 text-lg ml-1">🔍</span>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search fields or tag:medical, -tag:verb, is:suspended..."
-                className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                placeholder="Search cards, tag:medical::cardio, -tag:verb, is:suspended..."
+                className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
               />
             </div>
 
-            <div className="flex items-center gap-2.5 text-xs font-semibold">
+            <div className="flex items-center gap-2.5 text-sm font-semibold">
               <button
                 onClick={() => {
-                  const targetCards = selectedCardIds.size > 0 
-                    ? cards.filter(c => selectedCardIds.has(c.id)) 
-                    : filteredCards;
+                  const targetCards = selectedCardIds.size > 0 ? cards.filter(c => selectedCardIds.has(c.id)) : filteredCards;
                   toggleSuspendCards(targetCards, true);
                 }}
-                className="px-3.5 py-2 bg-amber-950/70 hover:bg-amber-900/90 border border-amber-500/40 text-amber-300 rounded-xl transition active:scale-95 shadow"
+                className="px-4 py-3 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded-xl transition active:scale-95 shadow"
               >
-                Suspend Selected
+                Suspend
               </button>
 
               <button
                 onClick={() => {
-                  const targetCards = selectedCardIds.size > 0 
-                    ? cards.filter(c => selectedCardIds.has(c.id)) 
-                    : filteredCards;
+                  const targetCards = selectedCardIds.size > 0 ? cards.filter(c => selectedCardIds.has(c.id)) : filteredCards;
                   toggleSuspendCards(targetCards, false);
                 }}
-                className="px-3.5 py-2 bg-emerald-950/70 hover:bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 rounded-xl transition active:scale-95 shadow"
+                className="px-4 py-3 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded-xl transition active:scale-95 shadow"
               >
-                Unsuspend Selected
+                Unsuspend
               </button>
 
               <button
                 onClick={suspendUnselectedInQuery}
-                title="Suspend all cards EXCEPT the current query/selection"
-                className="px-3.5 py-2 bg-rose-950/70 hover:bg-rose-900/90 border border-rose-500/40 text-rose-300 rounded-xl transition active:scale-95 shadow"
+                title="Suspend all cards EXCEPT selected or filtered cards"
+                className="px-4 py-3 bg-rose-950/70 hover:bg-rose-900 border border-rose-500/40 text-rose-300 rounded-xl transition active:scale-95 shadow"
               >
                 Suspend Others
               </button>
             </div>
           </div>
 
-          {/* Browser Workspace */}
+          {/* Browser Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5 flex-1 overflow-hidden">
             
-            {/* Anki Desktop Style Tag Tree Sidebar */}
-            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-3 overflow-y-auto space-y-1 text-sm">
-              <div className="font-bold text-slate-400 mb-2 px-2 text-[11px] uppercase tracking-wider font-mono flex items-center justify-between">
-                <span>Tag Hierarchy</span>
-                <span className="text-[10px] text-slate-500">Anki Tree</span>
+            {/* Tag Sidebar Tree */}
+            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 overflow-y-auto space-y-1.5 text-sm">
+              <div className="font-bold text-slate-400 mb-3 px-2 text-xs uppercase tracking-wider font-mono flex items-center justify-between">
+                <span>Anki Tag Hierarchy</span>
+                <span className="text-[10px] text-slate-500">Tree View</span>
               </div>
               
               <button
                 onClick={() => setSearchQuery("")}
-                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition text-xs ${searchQuery === "" ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition text-sm ${searchQuery === "" ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
               >
                 <span className="flex items-center gap-2">📂 <span>All Cards</span></span>
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full">{cards.length}</span>
+                <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">{cards.length}</span>
               </button>
 
               <button
                 onClick={() => setSearchQuery("is:suspended")}
-                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg transition text-xs ${searchQuery === "is:suspended" ? "bg-amber-600/30 text-amber-200 font-semibold border border-amber-500/40" : "text-amber-400/90 hover:bg-white/5 hover:text-amber-300"}`}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition text-sm ${searchQuery === "is:suspended" ? "bg-amber-600/30 text-amber-200 font-semibold border border-amber-500/40" : "text-amber-400/90 hover:bg-white/5 hover:text-amber-300"}`}
               >
                 <span className="flex items-center gap-2">⏸️ <span>Suspended</span></span>
-                <span className="text-[10px] font-mono text-amber-400/80 bg-amber-950/60 px-2 py-0.5 rounded-full">{cards.filter(c => c.suspended).length}</span>
+                <span className="text-xs font-mono text-amber-400/80 bg-amber-950/60 px-2.5 py-0.5 rounded-full">{cards.filter(c => c.suspended).length}</span>
               </button>
 
-              <hr className="border-white/10 my-2" />
+              <hr className="border-white/10 my-3" />
 
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {Object.keys(tagTreeRoot).length === 0 ? (
-                  <p className="text-xs text-slate-500 px-2 italic">No tags present in cards</p>
+                  <p className="text-xs text-slate-500 px-2 italic">No tags present in deck</p>
                 ) : (
                   Object.values(tagTreeRoot).map(node => (
-                    <TagTreeNode 
-                      key={node.fullTag} 
-                      node={node} 
-                      searchQuery={searchQuery} 
-                      setSearchQuery={setSearchQuery} 
-                    />
+                    <TagTreeNode key={node.fullTag} node={node} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
                   ))
                 )}
               </div>
             </div>
 
-            {/* Main Table View */}
+            {/* Card Table */}
             <div className="md:col-span-3 bg-slate-900/80 border border-white/10 rounded-2xl overflow-y-auto shadow-inner">
               <table className="w-full text-left text-sm border-collapse">
                 <thead className="bg-slate-950/90 text-slate-300 sticky top-0 border-b border-white/10 font-mono text-xs uppercase tracking-wider">
                   <tr>
-                    <th className="p-3.5 w-10 text-center">
+                    <th className="p-4 w-12 text-center">
                       <input 
                         type="checkbox"
-                        className="w-4 h-4 accent-sky-500 rounded cursor-pointer"
+                        className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
                         checked={selectedCardIds.size === filteredCards.length && filteredCards.length > 0}
                         onChange={(e) => {
                           if (e.target.checked) setSelectedCardIds(new Set(filteredCards.map(c => c.id)));
@@ -630,47 +701,44 @@
                         }}
                       />
                     </th>
-                    <th className="p-3.5">Front</th>
-                    <th className="p-3.5">Back</th>
-                    <th className="p-3.5">Tags</th>
-                    <th className="p-3.5 w-24 text-center">Status</th>
+                    <th className="p-4">Front</th>
+                    <th className="p-4">Back</th>
+                    <th className="p-4">Tags</th>
+                    <th className="p-4 w-28 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredCards.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="p-8 text-center text-slate-500 text-sm italic">
+                      <td colSpan="5" className="p-8 text-center text-slate-500 text-base italic">
                         No cards match the search query.
                       </td>
                     </tr>
                   ) : (
                     filteredCards.map(c => (
-                      <tr 
-                        key={c.id} 
-                        className={`hover:bg-white/[0.03] transition ${c.suspended ? "opacity-50 bg-amber-950/10" : ""} ${selectedCardIds.has(c.id) ? "bg-sky-950/40" : ""}`}
-                      >
-                        <td className="p-3.5 text-center">
+                      <tr key={c.id} className={`hover:bg-white/[0.03] transition ${c.suspended ? "opacity-50 bg-amber-950/10" : ""} ${selectedCardIds.has(c.id) ? "bg-sky-950/40" : ""}`}>
+                        <td className="p-4 text-center">
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 accent-sky-500 rounded cursor-pointer"
+                            className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
                             checked={selectedCardIds.has(c.id)} 
                             onChange={() => toggleSelectCard(c.id)}
                           />
                         </td>
-                        <td className="p-3.5 truncate max-w-[200px] text-slate-100 font-medium" dangerouslySetInnerHTML={{ __html: c.fields?.[0] || "" }} />
-                        <td className="p-3.5 truncate max-w-[200px] text-slate-300" dangerouslySetInnerHTML={{ __html: c.fields?.[1] || "" }} />
-                        <td className="p-3.5 text-slate-300">
+                        <td className="p-4 max-w-[220px] truncate text-slate-100 font-medium" dangerouslySetInnerHTML={{ __html: c.fields?.[0] || "" }} />
+                        <td className="p-4 max-w-[220px] truncate text-slate-300" dangerouslySetInnerHTML={{ __html: c.fields?.[1] || "" }} />
+                        <td className="p-4 text-slate-300">
                           {(c.tags || []).map(t => (
-                            <span key={t} className="inline-block bg-slate-800 border border-white/10 text-slate-200 text-xs px-2 py-0.5 rounded-md mr-1.5 my-0.5 font-mono">
+                            <span key={t} className="inline-block bg-slate-800 border border-white/10 text-slate-200 text-xs px-2.5 py-1 rounded-lg mr-1.5 my-0.5 font-mono">
                               {t}
                             </span>
                           ))}
                         </td>
-                        <td className="p-3.5 text-center font-mono text-xs">
+                        <td className="p-4 text-center font-mono text-xs">
                           {c.suspended ? (
-                            <span className="text-amber-400 bg-amber-950/70 px-2 py-1 rounded-md border border-amber-500/30 font-semibold">Suspended</span>
+                            <span className="text-amber-400 bg-amber-950/70 px-2.5 py-1 rounded-lg border border-amber-500/30 font-semibold">Suspended</span>
                           ) : (
-                            <span className="text-emerald-400 bg-emerald-950/70 px-2 py-1 rounded-md border border-emerald-500/30 font-semibold">Active</span>
+                            <span className="text-emerald-400 bg-emerald-950/70 px-2.5 py-1 rounded-lg border border-emerald-500/30 font-semibold">Active</span>
                           )}
                         </td>
                       </tr>
@@ -685,8 +753,7 @@
       );
     }
 
-    // --- STUDY SCREEN COMPONENT ---
-    function StudyScreen({ studyTarget, allCards, onCardUpdate, onBack }) {
+    function StudyScreen({ studyTarget, allCards, mediaMap, onCardUpdate, onBack }) {
       const targetCards = useMemo(() => allCards.filter(studyTarget.filterFn), [allCards, studyTarget]);
       const [currentIndex, setCurrentIndex] = useState(0);
       const [showAnswer, setShowAnswer] = useState(false);
@@ -695,87 +762,153 @@
 
       if (!currentCard) {
         return (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-            <span className="text-5xl">🎉</span>
-            <h2 className="text-xl font-bold text-slate-100">Deck Complete!</h2>
-            <p className="text-slate-400 text-sm max-w-sm">You've reviewed all available cards for this target session.</p>
-            <button onClick={onBack} className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-sm font-semibold shadow">
-              Return to Decks
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-6">
+            <span className="text-6xl">🎉</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">Session Complete!</h2>
+            <p className="text-slate-400 text-base max-w-md">All review cards for this deck have been scheduled.</p>
+            <button 
+              onClick={onBack} 
+              className="px-8 py-4 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl text-lg font-bold shadow-xl transition active:scale-95"
+            >
+              Back to Decks
             </button>
           </div>
         );
       }
 
-      const handleRating = async (rating) => {
-        let newInterval = currentCard.interval || 0;
-        let newEase = currentCard.easeFactor || 2.5;
+      const intervals = calculateIntervals(currentCard);
 
-        if (rating === 1) { newInterval = 0; newEase = Math.max(1.3, newEase - 0.2); }
-        else if (rating === 2) { newInterval = newInterval === 0 ? 1 : newInterval * 1.2; }
-        else if (rating === 3) { newInterval = newInterval === 0 ? 1 : newInterval * newEase; }
-        else if (rating === 4) { newInterval = newInterval === 0 ? 4 : newInterval * newEase * 1.3; newEase += 0.15; }
+      const handleRating = async (ratingType) => {
+        const step = intervals[ratingType];
 
         await dbUpdateCard({
           ...currentCard,
           reps: (currentCard.reps || 0) + 1,
-          interval: Math.round(newInterval),
-          easeFactor: newEase,
-          dueDate: Date.now() + Math.round(newInterval) * 86400000
+          interval: step.ivl,
+          easeFactor: step.ease,
+          dueDate: Date.now() + (step.ivl > 0 ? step.ivl * 86400000 : 600000)
         });
 
         setShowAnswer(false);
-        if (currentIndex < targetCards.length - 1) setCurrentIndex(currentIndex + 1);
-        else onCardUpdate();
+        if (currentIndex < targetCards.length - 1) {
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          onCardUpdate();
+        }
       };
 
       return (
-        <div className="max-w-3xl mx-auto h-full flex flex-col p-4 sm:p-6 justify-between">
-          <div className="flex items-center justify-between text-sm text-slate-400 mb-4 font-mono">
-            <span>{studyTarget.title}</span>
-            <span>{currentIndex + 1} / {targetCards.length}</span>
+        <div className="max-w-4xl mx-auto h-full flex flex-col p-4 sm:p-6 justify-between gap-4">
+          
+          {/* Header Info */}
+          <div className="flex items-center justify-between text-base text-slate-400 font-mono px-2">
+            <button onClick={onBack} className="flex items-center gap-2 hover:text-white transition">
+              <span>←</span>
+              <span className="truncate max-w-[200px] sm:max-w-xs">{studyTarget.title}</span>
+            </button>
+            <span className="bg-slate-900 border border-white/10 px-3 py-1 rounded-full text-xs sm:text-sm">
+              {currentIndex + 1} / {targetCards.length}
+            </span>
           </div>
 
-          <div className="flex-1 panel-card rounded-2xl p-8 flex flex-col justify-center items-center text-center overflow-y-auto mb-6 shadow-2xl">
-            <div className="card-content text-slate-100 text-lg sm:text-xl leading-relaxed w-full font-normal" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[0], true, currentCard.ord) }} />
+          {/* iPad Card Workspace */}
+          <div 
+            onClick={() => !showAnswer && setShowAnswer(true)}
+            className="flex-1 bg-slate-900/90 border border-white/10 rounded-3xl p-6 sm:p-10 flex flex-col items-center text-left overflow-y-auto shadow-2xl relative cursor-pointer"
+          >
+            {/* Front Field */}
+            <div 
+              className="card-prose text-slate-100 w-full mb-6"
+              dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[0], true, currentCard.ord, mediaMap) }} 
+            />
+
+            {/* Answer Field */}
             {showAnswer && (
-              <>
-                <hr className="w-full border-white/10 my-8" />
-                <div className="card-content text-slate-200 text-base sm:text-lg leading-relaxed w-full" dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[1], false, currentCard.ord) }} />
-              </>
-            )}
-          </div>
-
-          <div className="safe-bottom-margin">
-            {!showAnswer ? (
-              <button onClick={() => setShowAnswer(true)} className="w-full py-3.5 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold text-sm rounded-xl shadow-lg transition">
-                Show Answer
-              </button>
-            ) : (
-              <div className="grid grid-cols-4 gap-3">
-                <button onClick={() => handleRating(1)} className="py-3 bg-rose-950/70 hover:bg-rose-900 border border-rose-500/40 text-rose-300 rounded-xl text-sm font-bold">Again</button>
-                <button onClick={() => handleRating(2)} className="py-3 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded-xl text-sm font-bold">Hard</button>
-                <button onClick={() => handleRating(3)} className="py-3 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded-xl text-sm font-bold">Good</button>
-                <button onClick={() => handleRating(4)} className="py-3 bg-sky-950/70 hover:bg-sky-900 border border-sky-500/40 text-sky-300 rounded-xl text-sm font-bold">Easy</button>
+              <div className="w-full border-t border-white/15 pt-8 mt-4 animate-fade-in">
+                <div 
+                  className="card-prose text-slate-200 w-full"
+                  dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[1], false, currentCard.ord, mediaMap) }} 
+                />
               </div>
             )}
           </div>
+
+          {/* Touch Rating Bar */}
+          <div className="safe-pb w-full">
+            {!showAnswer ? (
+              <button 
+                onClick={() => setShowAnswer(true)} 
+                className="w-full py-5 sm:py-6 bg-sky-600 hover:bg-sky-500 active:scale-[0.98] text-white font-extrabold text-xl rounded-2xl shadow-xl transition border border-sky-400/30 flex items-center justify-center gap-3"
+              >
+                <span>Show Answer</span>
+                <span className="text-sm font-normal opacity-80">(Tap anywhere)</span>
+              </button>
+            ) : (
+              <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
+                
+                {/* Again Button */}
+                <button 
+                  onClick={() => handleRating("again")} 
+                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-rose-950/80 hover:bg-rose-900 active:scale-95 border-2 border-rose-500/50 text-rose-200 rounded-2xl transition shadow-lg"
+                >
+                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.again.label}</span>
+                  <span className="text-base sm:text-xl font-black">Again</span>
+                </button>
+
+                {/* Hard Button */}
+                <button 
+                  onClick={() => handleRating("hard")} 
+                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-amber-950/80 hover:bg-amber-900 active:scale-95 border-2 border-amber-500/50 text-amber-200 rounded-2xl transition shadow-lg"
+                >
+                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.hard.label}</span>
+                  <span className="text-base sm:text-xl font-black">Hard</span>
+                </button>
+
+                {/* Good Button */}
+                <button 
+                  onClick={() => handleRating("good")} 
+                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-emerald-950/80 hover:bg-emerald-900 active:scale-95 border-2 border-emerald-500/50 text-emerald-200 rounded-2xl transition shadow-lg"
+                >
+                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.good.label}</span>
+                  <span className="text-base sm:text-xl font-black">Good</span>
+                </button>
+
+                {/* Easy Button */}
+                <button 
+                  onClick={() => handleRating("easy")} 
+                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-sky-950/80 hover:bg-sky-900 active:scale-95 border-2 border-sky-500/50 text-sky-200 rounded-2xl transition shadow-lg"
+                >
+                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.easy.label}</span>
+                  <span className="text-base sm:text-xl font-black">Easy</span>
+                </button>
+
+              </div>
+            )}
+          </div>
+
         </div>
       );
     }
 
-    // --- MAIN APP COMPONENT ---
     function App() {
       const [view, setView] = useState("decks");
       const [decks, setDecks] = useState([]);
       const [cards, setCards] = useState([]);
+      const [mediaMap, setMediaMap] = useState({});
       const [studyTarget, setStudyTarget] = useState(null);
       const [loading, setLoading] = useState(false);
 
       const loadData = async () => {
         const d = await dbGetAll("decks");
         const c = await dbGetAll("cards");
+        const m = await dbGetAll("media");
+
+        const mediaDictionary = {};
+        m.forEach(item => { mediaDictionary[item.filename] = item.dataUrl; });
+
         setDecks(d);
         setCards(c);
+        setMediaMap(mediaDictionary);
       };
 
       useEffect(() => { loadData(); }, []);
@@ -799,37 +932,40 @@
       };
 
       return (
-        <div className="flex flex-col h-full w-full relative">
-          <header className="px-6 py-4 bg-slate-950/90 backdrop-blur-md border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20">
+        <div className="flex flex-col h-full w-full relative bg-ankiBg">
+          
+          {/* Header Bar */}
+          <header className="px-6 py-4 bg-slate-950/90 backdrop-blur-lg border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20 shadow-md">
             <div className="flex items-center space-x-3">
-              <span className="text-2xl">⚡</span>
+              <span className="text-2xl sm:text-3xl">⚡</span>
               <div>
-                <h1 className="text-base font-bold tracking-tight text-slate-100">AnkiFlow</h1>
-                <p className="text-xs font-mono text-slate-400">{view.toUpperCase()} VIEW</p>
+                <h1 className="text-lg font-bold tracking-tight text-slate-100">AnkiFlow</h1>
+                <p className="text-xs font-mono text-slate-400">TABLET EDITION</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button 
                 onClick={() => setView("decks")} 
-                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${view === "decks" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${view === "decks" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 Decks
               </button>
               <button 
                 onClick={() => setView("browser")} 
-                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${view === "browser" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${view === "browser" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 Card Browser
               </button>
             </div>
           </header>
 
+          {/* Main Body */}
           <main className="flex-1 overflow-y-auto">
             {loading && (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-                <div className="w-10 h-10 rounded-full border-2 border-slate-600 border-t-sky-400 animate-spin"></div>
-                <p className="text-slate-400 font-mono text-sm">Processing Package...</p>
+                <div className="w-12 h-12 rounded-full border-4 border-slate-700 border-t-sky-400 animate-spin"></div>
+                <p className="text-slate-300 font-mono text-base">Extracting Media Assets & Flashcards...</p>
               </div>
             )}
 
@@ -861,7 +997,7 @@
             )}
 
             {!loading && view === "study" && studyTarget && (
-              <StudyScreen studyTarget={studyTarget} allCards={cards} onCardUpdate={loadData} onBack={() => setView("decks")} />
+              <StudyScreen studyTarget={studyTarget} allCards={cards} mediaMap={mediaMap} onCardUpdate={loadData} onBack={() => setView("decks")} />
             )}
           </main>
         </div>
@@ -876,31 +1012,31 @@
         <div className="flex flex-col select-none">
           <div 
             onClick={() => onSelectDeck(node)}
-            className="group flex items-center justify-between p-4 my-1 panel-card hover:border-slate-500 rounded-2xl cursor-pointer transition active:scale-[0.995]"
-            style={{ marginLeft: `${depth * 20}px` }}
+            className="group flex items-center justify-between p-5 my-1.5 bg-slate-900/80 hover:bg-slate-800/80 border border-white/10 hover:border-sky-500/40 rounded-2xl cursor-pointer transition active:scale-[0.99] shadow-sm"
+            style={{ marginLeft: `${depth * 24}px` }}
           >
-            <div className="flex items-center space-x-3 flex-1 min-w-0 pr-3">
+            <div className="flex items-center space-x-4 flex-1 min-w-0 pr-4">
               {childNodes.length > 0 ? (
-                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-slate-400 text-xs">
+                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-slate-300 text-sm">
                   {isOpen ? "▼" : "▶"}
                 </button>
               ) : (
-                <span className="w-7 h-7 flex items-center justify-center text-slate-500 text-sm">🗂</span>
+                <span className="w-8 h-8 flex items-center justify-center text-slate-500 text-lg">🗂</span>
               )}
-              <span className="font-semibold text-slate-100 text-sm truncate group-hover:text-sky-300 transition">{node.displayName}</span>
+              <span className="font-bold text-slate-100 text-base sm:text-lg truncate group-hover:text-sky-300 transition">{node.displayName}</span>
             </div>
 
-            <div className="flex items-center space-x-2.5 flex-shrink-0 text-xs font-mono font-bold">
-              <span className="text-sky-400 bg-sky-950/50 border border-sky-500/30 px-2.5 py-1 rounded-lg">{node.newCount}</span>
-              <span className="text-rose-400 bg-rose-950/50 border border-rose-500/30 px-2.5 py-1 rounded-lg">{node.learningCount}</span>
-              <span className="text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-1 rounded-lg">{node.reviewCount}</span>
-              <button onClick={(e) => { e.stopPropagation(); onExportDeck(node); }} title="Export .apkg" className="p-1.5 text-slate-400 hover:text-sky-400 text-sm ml-1">💾</button>
-              <button onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }} title="Delete" className="p-1.5 text-slate-500 hover:text-rose-400 text-sm">✕</button>
+            <div className="flex items-center space-x-3 flex-shrink-0 text-xs sm:text-sm font-mono font-bold">
+              <span className="text-sky-400 bg-sky-950/60 border border-sky-500/30 px-3 py-1.5 rounded-xl">{node.newCount}</span>
+              <span className="text-rose-400 bg-rose-950/60 border border-rose-500/30 px-3 py-1.5 rounded-xl">{node.learningCount}</span>
+              <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1.5 rounded-xl">{node.reviewCount}</span>
+              <button onClick={(e) => { e.stopPropagation(); onExportDeck(node); }} title="Export .apkg" className="p-2 text-slate-400 hover:text-sky-400 text-lg ml-1">💾</button>
+              <button onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }} title="Delete" className="p-2 text-slate-500 hover:text-rose-400 text-lg">✕</button>
             </div>
           </div>
 
           {childNodes.length > 0 && isOpen && (
-            <div className="flex flex-col border-l border-white/10 ml-4 pl-1">
+            <div className="flex flex-col border-l border-white/10 ml-5 pl-1">
               {childNodes.map(child => (
                 <DeckTreeNode key={child.fullName} node={child} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} depth={depth + 1} />
               ))}
@@ -914,17 +1050,18 @@
       const rootNodes = Object.values(useMemo(() => buildCleanDeckTree(decks, cards), [decks, cards]));
 
       return (
-        <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 pb-20">
-          <div className="border border-dashed border-white/20 bg-white/[0.02] hover:border-sky-500/50 rounded-2xl p-6 text-center cursor-pointer transition">
+        <div className="max-w-5xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
+          <div className="border-2 border-dashed border-white/20 bg-slate-900/50 hover:border-sky-500/60 rounded-3xl p-8 text-center cursor-pointer transition">
             <input type="file" accept=".apkg" onChange={onUpload} id="file-input" className="hidden" />
-            <label htmlFor="file-input" className="cursor-pointer space-y-2 block">
-              <span className="text-2xl block">📥</span>
-              <p className="font-semibold text-sm text-slate-100">Import Anki Package (.apkg)</p>
+            <label htmlFor="file-input" className="cursor-pointer space-y-3 block">
+              <span className="text-4xl block">📥</span>
+              <p className="font-bold text-base sm:text-lg text-slate-100">Import Anki Package (.apkg)</p>
+              <p className="text-xs sm:text-sm text-slate-400">Supports embedded images, cloze deletions, and nested deck paths</p>
             </label>
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1 mb-2 font-mono">Decks</h2>
+          <div className="space-y-3">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 mb-2 font-mono">Decks Overview</h2>
             {rootNodes.map(node => (
               <DeckTreeNode key={node.fullName} node={node} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} />
             ))}
