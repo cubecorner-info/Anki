@@ -1,18 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" class="dark h-full">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#090d16" />
-  <title>AnkiFlow - Tablet & iPad Flashcards</title>
-
-  <!-- Google Fonts: Inter & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AnkiFlow Tablet Edition</title>
+  
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -20,1101 +12,812 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['"Inter"', 'system-ui', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
-          },
           colors: {
-            ankiBg: '#090d16',
-            ankiCard: '#131b2e',
-            ankiAgain: '#f43f5e',
-            ankiHard: '#f59e0b',
-            ankiGood: '#10b981',
-            ankiEasy: '#06b6d4',
+            brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+            again: '#ef4444',
+            hard: '#f59e0b',
+            good: '#10b981',
+            easy: '#06b6d4'
           }
         }
       }
     }
   </script>
 
-  <!-- External CDNs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  
+  <!-- sql.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+
   <style>
-    html, body {
-      height: 100%;
-      background-color: #090d16;
-      color: #f8fafc;
-      font-family: "Inter", -apple-system, sans-serif;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      overflow: hidden;
-    }
-
-    .card-prose {
-      user-select: text;
-      line-height: 1.7;
-      font-size: 1.2rem;
-    }
-    @media (min-width: 768px) {
-      .card-prose {
-        font-size: 1.45rem;
-        line-height: 1.8;
-      }
-    }
-
-    /* Media Handling inside Flashcards */
-    .card-prose img {
+    /* Custom Scrollbar for sleek dark design */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #111827; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    
+    /* Media responsiveness inside cards */
+    .card-content img {
       max-width: 100%;
-      max-height: 52vh;
-      object-fit: contain;
-      border-radius: 0.875rem;
-      margin: 1.25rem auto;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      height: auto;
+      border-radius: 0.5rem;
+      margin: 1rem auto;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
       display: block;
-      background-color: #0d1322;
     }
-
-    /* Anki Cloze Styling */
-    .cloze-bracket {
+    .card-content audio {
+      width: 100%;
+      margin: 0.75rem 0;
+    }
+    
+    /* Cloze Styling */
+    .cloze-placeholder {
       color: #38bdf8;
       font-weight: 700;
-      background: rgba(56, 189, 248, 0.15);
-      border: 1.5px dashed rgba(56, 189, 248, 0.5);
-      padding: 0.15rem 0.5rem;
-      border-radius: 0.5rem;
+      background-color: rgba(56, 189, 248, 0.15);
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.25rem;
+      border: 1px dashed #0284c7;
     }
-    .cloze-reveal {
-      color: #34d399;
+    .cloze-revealed {
+      color: #4ade80;
       font-weight: 700;
-      background: rgba(52, 211, 153, 0.2);
-      border: 1.5px solid rgba(52, 211, 153, 0.5);
-      padding: 0.15rem 0.5rem;
-      border-radius: 0.5rem;
-      display: inline-block;
-    }
-
-    /* iPad Safe Area Bottom Spacing */
-    .safe-pb {
-      padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
-    }
-
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-      width: 7px;
-      height: 7px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.6);
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
+      background-color: rgba(74, 222, 128, 0.15);
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.25rem;
+      border: 1px solid #16a34a;
     }
   </style>
 </head>
-<body class="h-full w-full flex flex-col relative text-slate-100">
-  <div id="root" class="h-full w-full flex flex-col"></div>
+<body class="bg-gray-950 text-gray-100 font-sans antialiased h-screen overflow-hidden select-none">
+  <div id="root" class="h-full w-full"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
+    // --- INDEXEDDB MEDIA CACHE UTILITY ---
+    const DB_NAME = 'AnkiFlowMediaDB';
+    const STORE_NAME = 'media';
 
-    const DB_NAME = "AnkiFlowTabletDB";
-    const DB_VERSION = 3;
-
-    function openDB() {
+    const initDB = () => {
       return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
           const db = e.target.result;
-          if (!db.objectStoreNames.contains("decks")) db.createObjectStore("decks", { keyPath: "id" });
-          if (!db.objectStoreNames.contains("cards")) {
-            const cardStore = db.createObjectStore("cards", { keyPath: "id" });
-            cardStore.createIndex("did", "did", { unique: false });
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
           }
-          if (!db.objectStoreNames.contains("media")) db.createObjectStore("media", { keyPath: "filename" });
         };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    };
+
+    const saveMediaToDB = async (filename, blob) => {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(blob, filename.toLowerCase());
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    };
+
+    const getMediaFromDB = async (filename) => {
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(filename.toLowerCase());
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
-    }
+    };
 
-    async function dbPutBatch(storeName, items) {
-      const db = await openDB();
+    const clearMediaDB = async () => {
+      const db = await initDB();
       return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readwrite");
-        const store = tx.objectStore(storeName);
-        items.forEach(item => store.put(item));
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
-    }
+    };
 
-    async function dbGetAll(storeName) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, "readonly");
-        const store = tx.objectStore(storeName);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    async function dbUpdateCard(card) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction("cards", "readwrite");
-        const store = tx.objectStore("cards");
-        store.put(card);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-
-    async function dbDeleteDeck(deckId, deckName, allDecks) {
-      const prefix = deckName + "::";
-      const matchingDeckIds = allDecks
-        .filter(d => d.id === deckId || d.name === deckName || d.name.startsWith(prefix))
-        .map(d => d.id);
-
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(["decks", "cards"], "readwrite");
-        const deckStore = tx.objectStore("decks");
-        const cardStore = tx.objectStore("cards");
-
-        matchingDeckIds.forEach(id => deckStore.delete(id));
-        const req = cardStore.openCursor();
-        req.onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            if (matchingDeckIds.includes(cursor.value.did)) cursor.delete();
-            cursor.continue();
-          }
-        };
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    }
-
-    async function parseApkg(file) {
-      const zip = await JSZip.loadAsync(file);
+    // --- ANKI CLOZE PARSER ---
+    const parseCloze = (text, targetOrdinal, isBack) => {
+      if (!text) return '';
       
-      // 1. Process Media Map File (maps internal numeric keys to actual media filenames)
-      const mediaMapFile = zip.file("media");
-      const mediaMapping = mediaMapFile ? JSON.parse(await mediaMapFile.async("string")) : {};
-      const mediaBlobStore = [];
+      // RegEx matches {{c1::answer::hint}} or {{c1::answer}}
+      const regex = /\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}/g;
 
-      for (const [numericKey, rawFileName] of Object.entries(mediaMapping)) {
-        const zippedMediaFile = zip.file(numericKey);
-        if (zippedMediaFile) {
-          const blob = await zippedMediaFile.async("blob");
-          const dataUrl = await new Promise((res) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result);
-            reader.readAsDataURL(blob);
-          });
-          
-          // Store both original filename and decoded filename for matching
-          const decodedName = decodeURIComponent(rawFileName);
-          mediaBlobStore.push({ filename: rawFileName, dataUrl });
-          if (decodedName !== rawFileName) {
-            mediaBlobStore.push({ filename: decodedName, dataUrl });
-          }
-        }
-      }
-
-      if (mediaBlobStore.length > 0) {
-        await dbPutBatch("media", mediaBlobStore);
-      }
-
-      // 2. Load SQLite Database File
-      let dbFile = zip.file("collection.anki21") || zip.file("collection.anki2");
-      if (!dbFile) throw new Error("Missing SQLite collection file in .apkg archive.");
-
-      const dbBuffer = await dbFile.async("uint8array");
-      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
-      const db = new SQL.Database(dbBuffer);
-
-      const colRes = db.exec("SELECT decks, models FROM col");
-      const decksJson = JSON.parse(colRes[0].values[0][0]);
-
-      const decks = [];
-      for (const [id, d] of Object.entries(decksJson)) {
-        if (d.name && d.name !== "Default") {
-          const normalizedName = d.name.replace(/[\x1f\u001f]/g, "::").trim();
-          decks.push({ id: String(d.id), name: normalizedName });
-        }
-      }
-
-      const notesRes = db.exec("SELECT id, mid, flds, tags FROM notes");
-      const notesMap = new Map();
-      if (notesRes.length > 0) {
-        notesRes[0].values.forEach(row => {
-          const [id, mid, flds, tags] = row;
-    <script type="text/babel">
-      const { useState, useEffect, useRef, useMemo } = React;
-
-      // Helper to process cloze markup based on active card index (ord + 1) and side (front vs back)
-      function renderClozeText(text, cardOrd, isBackSide) {
-        if (!text) return "";
-        const targetIndex = (cardOrd || 0) + 1;
-        
-        // Regex matches {{c1::answer}}, {{c1::answer::hint}}, {{c1::multiline...}}
-        const clozeRegex = /\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}/gs;
-
-        return text.replace(clozeRegex, (match, clozeNumStr, answer, hint) => {
-          const clozeNum = parseInt(clozeNumStr, 10);
-          
-          if (clozeNum === targetIndex) {
-            if (isBackSide) {
-              // Back side: Highlight and reveal answer
-              return `<span class="cloze-revealed bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-500/40">${answer}</span>`;
-            } else {
-              // Front side: Hide answer, show hint or placeholder [...]
-              const displayHint = hint && hint.trim() ? `[${hint.trim()}]` : '[...]';
-              return `<span class="cloze-hidden text-amber-400 font-bold px-1.5 py-0.5 bg-amber-500/10 rounded border border-amber-500/30">${displayHint}</span>`;
-            }
+      return text.replace(regex, (match, ord, answer, hint) => {
+        const ordinal = parseInt(ord, 10);
+        if (ordinal === targetOrdinal) {
+          if (isBack) {
+            return `<span class="cloze-revealed">${answer}</span>`;
           } else {
-            // Non-active cloze deletions reveal their text neutrally (Anki standard)
-            return answer;
+            return `<span class="cloze-placeholder">[${hint ? hint : '...'}]</span>`;
           }
-        });
-      }
-
-      db.close();
-      if (decks.length === 0) decks.push({ id: "1", name: file.name.replace(".apkg", "") });
-      await dbPutBatch("decks", decks);
-      await dbPutBatch("cards", cards);
-    }
-
-    async function exportDeckToApkg(deckName, cards) {
-      const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
-      const db = new SQL.Database();
-
-      db.run(`
-        CREATE TABLE col (
-          id INTEGER PRIMARY KEY, crt INTEGER NOT NULL, mod INTEGER NOT NULL, scm INTEGER NOT NULL,
-          ver INTEGER NOT NULL, dcount INTEGER NOT NULL, empty INTEGER NOT NULL, ls INTEGER NOT NULL,
-          conf TEXT NOT NULL, models TEXT NOT NULL, decks TEXT NOT NULL, dconf TEXT NOT NULL, tags TEXT NOT NULL
-        );
-        CREATE TABLE notes (
-          id INTEGER PRIMARY KEY, guid TEXT NOT NULL, mid INTEGER NOT NULL, mod INTEGER NOT NULL,
-          usn INTEGER NOT NULL, tags TEXT NOT NULL, flds TEXT NOT NULL, sfld INTEGER NOT NULL,
-          csum INTEGER NOT NULL, flags INTEGER NOT NULL, data TEXT NOT NULL
-        );
-        CREATE TABLE cards (
-          id INTEGER PRIMARY KEY, nid INTEGER NOT NULL, did INTEGER NOT NULL, ord INTEGER NOT NULL,
-          mod INTEGER NOT NULL, usn INTEGER NOT NULL, type INTEGER NOT NULL, queue INTEGER NOT NULL,
-          due INTEGER NOT NULL, ivl INTEGER NOT NULL, factor INTEGER NOT NULL, reps INTEGER NOT NULL,
-          lapses INTEGER NOT NULL, left INTEGER NOT NULL, odue INTEGER NOT NULL, odid INTEGER NOT NULL,
-          flags INTEGER NOT NULL, data TEXT NOT NULL
-        );
-      `);
-
-      const now = Math.floor(Date.now() / 1000);
-      const deckId = Date.now();
-      const modelId = deckId + 1;
-
-      const modelsJson = {};
-      modelsJson[modelId] = {
-        id: modelId,
-        name: "Basic-AnkiFlow",
-        flds: [{ name: "Front" }, { name: "Back" }],
-        tmpls: [{ name: "Card 1", qfmt: "{{Front}}", afmt: "{{FrontSide}}<hr id=answer>{{Back}}" }]
-      };
-
-      const decksJson = { "1": { id: 1, name: "Default" } };
-      decksJson[deckId] = { id: deckId, name: deckName };
-
-      db.run("INSERT INTO col VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-        1, now, now * 1000, now * 1000, 11, 0, 0, 0, "{}", JSON.stringify(modelsJson), JSON.stringify(decksJson), "{}", "{}"
-      ]);
-
-      cards.forEach((c, idx) => {
-        const nid = deckId + 10 + idx;
-        const cid = deckId + 1000 + idx;
-        const fldsStr = (c.fields || []).join("\x1f");
-        const tagStr = (c.tags || []).join(" ");
-
-        db.run("INSERT INTO notes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-          nid, "guid" + nid, modelId, now, -1, ` ${tagStr} `, fldsStr, 0, 0, 0, ""
-        ]);
-
-        db.run("INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-          cid, nid, deckId, c.ord || 0, now, -1, c.suspended ? -1 : (c.reps > 0 ? 2 : 0), c.suspended ? -1 : (c.reps > 0 ? 2 : 0), c.dueDate || now, c.interval || 0, Math.round((c.easeFactor || 2.5) * 1000), c.reps || 0, 0, 0, 0, 0, 0, ""
-        ]);
-      });
-
-      const binaryArray = db.export();
-      const zip = new JSZip();
-      zip.file("collection.anki2", binaryArray);
-      zip.file("media", "{}");
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${deckName.replace(/::/g, "_")}.apkg`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function renderCardField(html, isFront = true, clozeOrd = 0, mediaMap = {}) {
-      if (!html) return "";
-      let processed = html;
-
-      // 1. Process Anki Cloze Deletions {{c1::text::hint}}
-      const clozeRegex = /\{\{c(\d+)::([^:}]+)(?:::([^}]+))?\}\}/g;
-      processed = processed.replace(clozeRegex, (match, num, text, hint) => {
-        const isCurrentCloze = parseInt(num) === (clozeOrd + 1);
-        if (isFront) {
-          return isCurrentCloze ? `<span class="cloze-bracket">[${hint || "..."}]</span>` : text;
         } else {
-          return isCurrentCloze ? `<span class="cloze-reveal">${text}</span>` : text;
+          // Non-active clozes are displayed as standard answer text
+          return answer;
         }
       });
+    };
 
-      // 2. Extract and replace img src attributes with IndexedDB stored Data URLs
-      processed = processed.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (fullTag, srcValue) => {
-        let cleanName = srcValue.split('/').pop().split('?')[0];
-        try {
-          cleanName = decodeURIComponent(cleanName);
-        } catch(e) {}
+    // Extract all cloze ordinals from note field text
+    const extractClozeOrdinals = (text) => {
+      const regex = /\{\{c(\d+)::/g;
+      const ordinals = new Set();
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        ordinals.add(parseInt(match[1], 10));
+      }
+      return Array.from(ordinals);
+    };
 
-        const matchedUrl = mediaMap[cleanName] || mediaMap[encodeURIComponent(cleanName)] || mediaMap[srcValue];
-        
-        if (matchedUrl) {
-          return fullTag.replace(`src="${srcValue}"`, `src="${matchedUrl}"`).replace(`src='${srcValue}'`, `src="${matchedUrl}"`);
+    // --- ANKI SM-2 SCHEDULING ---
+    const calculateSM2 = (card, rating) => {
+      // rating: 1 = Again, 2 = Hard, 3 = Good, 4 = Easy
+      let interval = card.interval || 0;
+      let reps = card.reps || 0;
+      let ease = card.ease || 2.5;
+
+      if (rating === 1) { // Again
+        reps = 0;
+        interval = 0; // Reset or 1 min
+      } else {
+        if (rating === 2) { // Hard
+          ease = Math.max(1.3, ease - 0.15);
+          interval = interval === 0 ? 1 : Math.round(interval * 1.2);
+        } else if (rating === 3) { // Good
+          if (reps === 0) interval = 1;
+          else if (reps === 1) interval = 6;
+          else interval = Math.round(interval * ease);
+        } else if (rating === 4) { // Easy
+          ease = ease + 0.15;
+          if (reps === 0) interval = 4;
+          else if (reps === 1) interval = 10;
+          else interval = Math.round(interval * ease * 1.3);
         }
-        return fullTag;
-      });
-
-      return processed;
-    }
-
-    function calculateIntervals(card) {
-      const reps = card.reps || 0;
-      const interval = card.interval || 0;
-      const ease = card.easeFactor || 2.5;
-
-      if (reps === 0 || interval === 0) {
-        // Learning Steps for New Cards
-        return {
-          again: { label: "<10m", ivl: 0, ease: Math.max(1.3, ease - 0.2) },
-          hard: { label: "1d", ivl: 1, ease: Math.max(1.3, ease - 0.15) },
-          good: { label: "1d", ivl: 1, ease: ease },
-          easy: { label: "4d", ivl: 4, ease: ease + 0.15 }
-        };
+        reps += 1;
       }
 
-      // Review Card Multipliers
-      const hardIvl = Math.max(1, Math.round(interval * 1.2));
-      const goodIvl = Math.max(hardIvl + 1, Math.round(interval * ease));
-      const easyIvl = Math.max(goodIvl + 1, Math.round(interval * ease * 1.3));
-
-      const formatDays = (d) => d < 30 ? `${d}d` : `${(d / 30).toFixed(1)}m`;
+      // Next due date calculation
+      const now = new Date();
+      const dueDate = new Date(now);
+      if (interval === 0) {
+        dueDate.setMinutes(dueDate.getMinutes() + 1); // 1 minute
+      } else {
+        dueDate.setDate(dueDate.getDate() + interval);
+      }
 
       return {
-        again: { label: "1d", ivl: 1, ease: Math.max(1.3, ease - 0.2) },
-        hard: { label: formatDays(hardIvl), ivl: hardIvl, ease: Math.max(1.3, ease - 0.15) },
-        good: { label: formatDays(goodIvl), ivl: goodIvl, ease: ease },
-        easy: { label: formatDays(easyIvl), ivl: easyIvl, ease: ease + 0.15 }
+        ...card,
+        reps,
+        interval,
+        ease,
+        due: dueDate.getTime(),
+        lastReviewed: now.getTime()
       };
-    }
+    };
 
-    function buildCleanDeckTree(decks, cards) {
-      const root = { children: {} };
-      decks.forEach(d => {
-        const parts = d.name.split("::").map(p => p.trim()).filter(Boolean);
-        let current = root;
-        parts.forEach((part, idx) => {
-          if (!current.children[part]) {
-            current.children[part] = {
-              displayName: part,
-              fullName: parts.slice(0, idx + 1).join("::"),
-              deckId: idx === parts.length - 1 ? d.id : null,
-              children: {},
-              allDeckIds: new Set()
-            };
-          }
-          if (idx === parts.length - 1) current.children[part].deckId = d.id;
-          current = current.children[part];
-        });
-      });
+    const getIntervalBadge = (card, rating) => {
+      const nextCard = calculateSM2(card, rating);
+      if (nextCard.interval === 0) return '<1m';
+      if (nextCard.interval === 1) return '1d';
+      return `${nextCard.interval}d`;
+    };
 
-      function populateStats(node) {
-        const childNodes = Object.values(node.children);
-        let directCards = [];
-        let descendantDeckIds = new Set();
+    const App = () => {
+      const [view, setView] = React.useState('decks'); // 'decks', 'review', 'browser'
+      const [decks, setDecks] = React.useState({});
+      const [cards, setCards] = React.useState([]);
+      const [selectedDeck, setSelectedDeck] = React.useState(null);
+      const [reviewQueue, setReviewQueue] = React.useState([]);
+      const [currentCardIndex, setCurrentCardIndex] = React.useState(0);
+      const [showAnswer, setShowAnswer] = React.useState(false);
+      const [isLoading, setIsLoading] = React.useState(false);
+      const [loadingMsg, setLoadingMsg] = React.useState('');
+      const [searchQuery, setSearchQuery] = React.useState('');
+      const [selectedTag, setSelectedTag] = React.useState(null);
+      const [renderedContent, setRenderedContent] = React.useState({ front: '', back: '' });
 
-        if (node.deckId) {
-          descendantDeckIds.add(node.deckId);
-          directCards = cards.filter(c => c.did === node.deckId);
-        }
+      // Media URL replacement cache
+      const objectUrlCache = React.useRef(new Map());
 
-        let allNodeCards = [...directCards];
-        childNodes.forEach(child => {
-          populateStats(child);
-          child.allDeckIds.forEach(id => descendantDeckIds.add(id));
-          allNodeCards = allNodeCards.concat(cards.filter(c => child.allDeckIds.has(c.did)));
-        });
-
-        const uniqueCardsMap = new Map();
-        allNodeCards.forEach(c => uniqueCardsMap.set(c.id, c));
-        const uniqueCards = Array.from(uniqueCardsMap.values());
-
-        node.newCount = uniqueCards.filter(c => !c.suspended && c.reps === 0).length;
-        node.learningCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval < 1).length;
-        node.reviewCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval >= 1).length;
-        node.allDeckIds = descendantDeckIds;
-      }
-
-      Object.values(root.children).forEach(populateStats);
-      return root.children;
-    }
-
-    function buildTagTree(cards) {
-      const root = { children: {}, count: 0 };
-      cards.forEach(card => {
-        const tags = card.tags || [];
-        tags.forEach(fullTag => {
-          const parts = fullTag.split("::").map(p => p.trim()).filter(Boolean);
-          let current = root;
-          let cumulativePath = "";
-
-          parts.forEach((part, idx) => {
-            cumulativePath = idx === 0 ? part : `${cumulativePath}::${part}`;
-            if (!current.children[part]) {
-              current.children[part] = {
-                name: part,
-                fullTag: cumulativePath,
-                children: {},
-                count: 0
-              };
+      // Helper to process media tags inside rendered HTML content
+      const processMediaTags = async (htmlContent) => {
+        if (!htmlContent) return '';
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+        
+        // Handle images
+        const imgs = Array.from(doc.querySelectorAll('img'));
+        for (let img of imgs) {
+          const src = img.getAttribute('src');
+          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+            if (objectUrlCache.current.has(src)) {
+              img.src = objectUrlCache.current.get(src);
+            } else {
+              const blob = await getMediaFromDB(src);
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                objectUrlCache.current.set(src, url);
+                img.src = url;
+              }
             }
-            current = current.children[part];
-            current.count++;
-          });
-        });
-      });
-      return root.children;
-    }
-
-    function TagTreeNode({ node, searchQuery, setSearchQuery, depth = 0 }) {
-      const [isOpen, setIsOpen] = useState(false);
-      const childNodes = Object.values(node.children);
-      const isSelected = searchQuery === `tag:${node.fullTag}`;
-
-      return (
-        <div className="flex flex-col select-none">
-          <div 
-            onClick={() => setSearchQuery(`tag:${node.fullTag}`)}
-            className={`group flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer transition text-sm font-sans ${isSelected ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
-            style={{ paddingLeft: `${depth * 14 + 10}px` }}
-          >
-            <div className="flex items-center space-x-2 truncate pr-2">
-              {childNodes.length > 0 ? (
-                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-5 h-5 flex items-center justify-center text-xs text-slate-400 hover:text-white">
-                  {isOpen ? "◢" : "▶"}
-                </button>
-              ) : (
-                <span className="w-4 h-4 flex items-center justify-center text-xs text-slate-500">🏷️</span>
-              )}
-              <span className="truncate">{node.name}</span>
-            </div>
-            <span className="text-[11px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full flex-shrink-0">
-              {node.count}
-            </span>
-          </div>
-
-          {childNodes.length > 0 && isOpen && (
-            <div className="flex flex-col border-l border-white/10 ml-3">
-              {childNodes.map(child => (
-                <TagTreeNode key={child.fullTag} node={child} searchQuery={searchQuery} setSearchQuery={setSearchQuery} depth={depth + 1} />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    function BrowserScreen({ cards, decks, onCardUpdate }) {
-      const [searchQuery, setSearchQuery] = useState("");
-      const [selectedCardIds, setSelectedCardIds] = useState(new Set());
-
-      const tagTreeRoot = useMemo(() => buildTagTree(cards), [cards]);
-
-      const filteredCards = useMemo(() => {
-        if (!searchQuery.trim()) return cards;
-        const q = searchQuery.trim().toLowerCase();
-
-        if (q.startsWith("tag:")) {
-          const targetTag = q.slice(4).trim();
-          return cards.filter(c => (c.tags || []).some(t => t.toLowerCase() === targetTag || t.toLowerCase().startsWith(targetTag + "::")));
-        }
-        if (q.startsWith("-tag:")) {
-          const targetTag = q.slice(5).trim();
-          return cards.filter(c => !(c.tags || []).some(t => t.toLowerCase() === targetTag || t.toLowerCase().startsWith(targetTag + "::")));
-        }
-        if (q === "is:suspended") {
-          return cards.filter(c => c.suspended);
-        }
-
-        return cards.filter(c => 
-          (c.fields?.[0] || "").toLowerCase().includes(q) ||
-          (c.fields?.[1] || "").toLowerCase().includes(q) ||
-          (c.tags || []).some(t => t.toLowerCase().includes(q))
-        );
-      }, [cards, searchQuery]);
-
-      const toggleSelectCard = (id) => {
-        const next = new Set(selectedCardIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        setSelectedCardIds(next);
-      };
-
-      const toggleSuspendCards = async (targetCards, suspendState) => {
-        const updated = targetCards.map(c => ({ ...c, suspended: suspendState }));
-        await dbPutBatch("cards", updated);
-        onCardUpdate();
-      };
-
-      const suspendUnselectedInQuery = async () => {
-        const selectedSet = selectedCardIds.size > 0 ? selectedCardIds : new Set(filteredCards.map(c => c.id));
-        const updated = cards.map(c => {
-          if (!selectedSet.has(c.id)) {
-            return { ...c, suspended: true };
           }
-          return c;
-        });
-        await dbPutBatch("cards", updated);
-        onCardUpdate();
+        }
+
+        // Handle Audio
+        const audios = Array.from(doc.querySelectorAll('audio, [data-sound]'));
+        for (let audio of audios) {
+          const src = audio.getAttribute('src');
+          if (src && !src.startsWith('http') && !src.startsWith('data:')) {
+            if (objectUrlCache.current.has(src)) {
+              audio.src = objectUrlCache.current.get(src);
+            } else {
+              const blob = await getMediaFromDB(src);
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                objectUrlCache.current.set(src, url);
+                audio.src = url;
+              }
+            }
+          }
+        }
+
+        return doc.body.innerHTML;
       };
 
-      return (
-        <div className="flex flex-col h-full max-w-7xl mx-auto p-4 md:p-6 gap-5">
-          {/* Top Search & Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-4 rounded-2xl border border-white/10 shadow-lg">
-            <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-              <span className="text-slate-400 text-lg ml-1">🔍</span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search cards, tag:medical::cardio, -tag:verb, is:suspended..."
-                className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
-              />
-            </div>
+      // Process card front and back content when current review card updates
+      const currentCard = reviewQueue[currentCardIndex];
 
-            <div className="flex items-center gap-2.5 text-sm font-semibold">
-              <button
-                onClick={() => {
-                  const targetCards = selectedCardIds.size > 0 ? cards.filter(c => selectedCardIds.has(c.id)) : filteredCards;
-                  toggleSuspendCards(targetCards, true);
-                }}
-                className="px-4 py-3 bg-amber-950/70 hover:bg-amber-900 border border-amber-500/40 text-amber-300 rounded-xl transition active:scale-95 shadow"
-              >
-                Suspend
-              </button>
+      React.useEffect(() => {
+        if (!currentCard) return;
 
-              <button
-                onClick={() => {
-                  const targetCards = selectedCardIds.size > 0 ? cards.filter(c => selectedCardIds.has(c.id)) : filteredCards;
-                  toggleSuspendCards(targetCards, false);
-                }}
-                className="px-4 py-3 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded-xl transition active:scale-95 shadow"
-              >
-                Unsuspend
-              </button>
+        const updateContent = async () => {
+          let rawFront = currentCard.front;
+          let rawBack = currentCard.back;
 
-              <button
-                onClick={suspendUnselectedInQuery}
-                title="Suspend all cards EXCEPT selected or filtered cards"
-                className="px-4 py-3 bg-rose-950/70 hover:bg-rose-900 border border-rose-500/40 text-rose-300 rounded-xl transition active:scale-95 shadow"
-              >
-                Suspend Others
-              </button>
-            </div>
-          </div>
-
-          {/* Browser Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 flex-1 overflow-hidden">
-            
-            {/* Tag Sidebar Tree */}
-            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 overflow-y-auto space-y-1.5 text-sm">
-              <div className="font-bold text-slate-400 mb-3 px-2 text-xs uppercase tracking-wider font-mono flex items-center justify-between">
-                <span>Anki Tag Hierarchy</span>
-                <span className="text-[10px] text-slate-500">Tree View</span>
-              </div>
-              
-              <button
-                onClick={() => setSearchQuery("")}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition text-sm ${searchQuery === "" ? "bg-sky-600/30 text-sky-200 font-semibold border border-sky-500/40" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
-              >
-                <span className="flex items-center gap-2">📂 <span>All Cards</span></span>
-                <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">{cards.length}</span>
-              </button>
-
-              <button
-                onClick={() => setSearchQuery("is:suspended")}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition text-sm ${searchQuery === "is:suspended" ? "bg-amber-600/30 text-amber-200 font-semibold border border-amber-500/40" : "text-amber-400/90 hover:bg-white/5 hover:text-amber-300"}`}
-              >
-                <span className="flex items-center gap-2">⏸️ <span>Suspended</span></span>
-                <span className="text-xs font-mono text-amber-400/80 bg-amber-950/60 px-2.5 py-0.5 rounded-full">{cards.filter(c => c.suspended).length}</span>
-              </button>
-
-              <hr className="border-white/10 my-3" />
-
-              <div className="space-y-1">
-                {Object.keys(tagTreeRoot).length === 0 ? (
-                  <p className="text-xs text-slate-500 px-2 italic">No tags present in deck</p>
-                ) : (
-                  Object.values(tagTreeRoot).map(node => (
-                    <TagTreeNode key={node.fullTag} node={node} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Card Table */}
-            <div className="md:col-span-3 bg-slate-900/80 border border-white/10 rounded-2xl overflow-y-auto shadow-inner">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead className="bg-slate-950/90 text-slate-300 sticky top-0 border-b border-white/10 font-mono text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4 w-12 text-center">
-                      <input 
-                        type="checkbox"
-                        className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
-                        checked={selectedCardIds.size === filteredCards.length && filteredCards.length > 0}
-                        onChange={(e) => {
-                          if (e.target.checked) setSelectedCardIds(new Set(filteredCards.map(c => c.id)));
-                          else setSelectedCardIds(new Set());
-                        }}
-                      />
-                    </th>
-                    <th className="p-4">Front</th>
-                    <th className="p-4">Back</th>
-                    <th className="p-4">Tags</th>
-                    <th className="p-4 w-28 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filteredCards.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="p-8 text-center text-slate-500 text-base italic">
-                        No cards match the search query.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCards.map(c => (
-                      <tr key={c.id} className={`hover:bg-white/[0.03] transition ${c.suspended ? "opacity-50 bg-amber-950/10" : ""} ${selectedCardIds.has(c.id) ? "bg-sky-950/40" : ""}`}>
-                        <td className="p-4 text-center">
-                          <input 
-                            type="checkbox" 
-                            className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
-                            checked={selectedCardIds.has(c.id)} 
-                            onChange={() => toggleSelectCard(c.id)}
-      function CardViewer({ card, isBackRevealed, mediaMap }) {
-        if (!card) return null;
-
-        // Extract and clean content with HTML entity decoding & media mapping
-        const processFieldContent = (content) => {
-          if (!content) return "";
-          let processed = content;
-          
-          // Apply media src blob replacements if present
-          if (mediaMap) {
-            Object.keys(mediaMap).forEach(fileName => {
-              const regex = new RegExp(`src=["'](.*?/)?${fileName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}["']`, 'gi');
-              processed = processed.replace(regex, `src="${mediaMap[fileName]}"`);
-            });
+          // If cloze card, process cloze patterns
+          if (currentCard.isCloze) {
+            rawFront = parseCloze(currentCard.front, currentCard.clozeOrdinal, false);
+            rawBack = parseCloze(currentCard.front, currentCard.clozeOrdinal, true) + 
+                      (currentCard.back ? `<hr class="my-4 border-gray-700">${currentCard.back}` : '');
           }
-          return processed;
+
+          const processedFront = await processMediaTags(rawFront);
+          const processedBack = await processMediaTags(rawBack);
+
+          setRenderedContent({ front: processedFront, back: processedBack });
         };
 
-        const isCloze = card.modelType === 'cloze' || card.type === 'cloze' || (card.front && card.front.includes('{{c'));
-        const cardOrd = card.ord !== undefined ? card.ord : 0;
+        updateContent();
+      }, [currentCardIndex, currentCard]);
 
-        let frontHTML = processFieldContent(card.front || "");
-        let backHTML = processFieldContent(card.back || "");
-
-        if (isCloze) {
-          frontHTML = renderClozeText(frontHTML, cardOrd, false);
-          backHTML = renderClozeText(backHTML || card.front, cardOrd, true);
-        }
-
-        return (
-          <div className="flex flex-col h-full w-full justify-center items-center p-6 select-text overflow-y-auto">
-            <div className="w-full max-w-3xl bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-8 shadow-2xl space-y-6">
-              {/* Front Side */}
-              <div 
-                className="prose prose-invert max-w-none text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: frontHTML }} 
-              />
-
-              {/* Divider & Back Side */}
-              {isBackRevealed && (
-                <div className="pt-6 border-t border-slate-800 animate-fadeIn space-y-4">
-                  <div className="text-xs uppercase tracking-widest text-emerald-400 font-semibold mb-2">Answer</div>
-                  <div 
-                    className="prose prose-invert max-w-none text-lg sm:text-xl text-slate-200 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: backHTML }} 
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      function createCardsFromNote(note) {
-        if (!note || !note.fields) return [];
-        
-        const isCloze = note.modelType === 'cloze' || (note.fields[0] && note.fields[0].includes('{{c'));
-        
-        if (isCloze) {
-          const text = note.fields.join(' ');
-          const clozeMatches = [...text.matchAll(/\{\{c(\d+)::/g)];
-          const ordSet = new Set(clozeMatches.map(m => parseInt(m[1], 10) - 1));
-          
-          if (ordSet.size === 0) ordSet.add(0); // Fallback to 1 card if no numbers found
-          
-          return Array.from(ordSet).map(ord => ({
-            id: `${note.id}_cloze_${ord}`,
-            noteId: note.id,
-            deckId: note.deckId,
-            ord: ord,
-            modelType: 'cloze',
-            front: note.fields[0] || "",
-            back: note.fields[1] || "",
-            tags: note.tags || [],
-            interval: note.interval || 0,
-            ease: note.ease || 2.5,
-            dueDate: note.dueDate || Date.now(),
-            state: note.state || 'new'
-          }));
-        }
-
-        // Standard Front/Back Card
-        return [{
-          id: note.id,
-          noteId: note.id,
-          deckId: note.deckId,
-          ord: 0,
-          modelType: 'standard',
-          front: note.fields[0] || "",
-          back: note.fields[1] || "",
-          tags: note.tags || [],
-          interval: note.interval || 0,
-          ease: note.ease || 2.5,
-          dueDate: note.dueDate || Date.now(),
-          state: note.state || 'new'
-        }];
-      }
-
-
-      const handleRating = async (ratingType) => {
-        const step = intervals[ratingType];
-
-        await dbUpdateCard({
-          ...currentCard,
-          reps: (currentCard.reps || 0) + 1,
-          interval: step.ivl,
-          easeFactor: step.ease,
-          dueDate: Date.now() + (step.ivl > 0 ? step.ivl * 86400000 : 600000)
-        });
-
-        setShowAnswer(false);
-        if (currentIndex < targetCards.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        } else {
-          onCardUpdate();
-        }
-      };
-
-      return (
-        <div className="max-w-4xl mx-auto h-full flex flex-col p-4 sm:p-6 justify-between gap-4">
-          
-          {/* Header Info */}
-          <div className="flex items-center justify-between text-base text-slate-400 font-mono px-2">
-            <button onClick={onBack} className="flex items-center gap-2 hover:text-white transition">
-              <span>←</span>
-              <span className="truncate max-w-[200px] sm:max-w-xs">{studyTarget.title}</span>
-            </button>
-            <span className="bg-slate-900 border border-white/10 px-3 py-1 rounded-full text-xs sm:text-sm">
-              {currentIndex + 1} / {targetCards.length}
-            </span>
-          </div>
-
-          {/* iPad Card Workspace */}
-          <div 
-            onClick={() => !showAnswer && setShowAnswer(true)}
-            className="flex-1 bg-slate-900/90 border border-white/10 rounded-3xl p-6 sm:p-10 flex flex-col items-center text-left overflow-y-auto shadow-2xl relative cursor-pointer"
-          >
-            {/* Front Field */}
-            <div 
-              className="card-prose text-slate-100 w-full mb-6"
-              dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[0], true, currentCard.ord, mediaMap) }} 
-            />
-
-            {/* Answer Field */}
-            {showAnswer && (
-              <div className="w-full border-t border-white/15 pt-8 mt-4 animate-fade-in">
-                <div 
-                  className="card-prose text-slate-200 w-full"
-                  dangerouslySetInnerHTML={{ __html: renderCardField(currentCard.fields?.[1], false, currentCard.ord, mediaMap) }} 
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Touch Rating Bar */}
-          <div className="safe-pb w-full">
-            {!showAnswer ? (
-              <button 
-                onClick={() => setShowAnswer(true)} 
-                className="w-full py-5 sm:py-6 bg-sky-600 hover:bg-sky-500 active:scale-[0.98] text-white font-extrabold text-xl rounded-2xl shadow-xl transition border border-sky-400/30 flex items-center justify-center gap-3"
-              >
-                <span>Show Answer</span>
-                <span className="text-sm font-normal opacity-80">(Tap anywhere)</span>
-              </button>
-            ) : (
-              <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
-                
-                {/* Again Button */}
-                <button 
-                  onClick={() => handleRating("again")} 
-                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-rose-950/80 hover:bg-rose-900 active:scale-95 border-2 border-rose-500/50 text-rose-200 rounded-2xl transition shadow-lg"
-                >
-                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.again.label}</span>
-                  <span className="text-base sm:text-xl font-black">Again</span>
-                </button>
-
-                {/* Hard Button */}
-                <button 
-                  onClick={() => handleRating("hard")} 
-                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-amber-950/80 hover:bg-amber-900 active:scale-95 border-2 border-amber-500/50 text-amber-200 rounded-2xl transition shadow-lg"
-                >
-                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.hard.label}</span>
-                  <span className="text-base sm:text-xl font-black">Hard</span>
-                </button>
-
-                {/* Good Button */}
-                <button 
-                  onClick={() => handleRating("good")} 
-                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-emerald-950/80 hover:bg-emerald-900 active:scale-95 border-2 border-emerald-500/50 text-emerald-200 rounded-2xl transition shadow-lg"
-                >
-                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.good.label}</span>
-                  <span className="text-base sm:text-xl font-black">Good</span>
-                </button>
-
-                {/* Easy Button */}
-                <button 
-                  onClick={() => handleRating("easy")} 
-                  className="flex flex-col items-center justify-center py-4 sm:py-5 bg-sky-950/80 hover:bg-sky-900 active:scale-95 border-2 border-sky-500/50 text-sky-200 rounded-2xl transition shadow-lg"
-                >
-                  <span className="text-xs sm:text-sm font-mono opacity-80 mb-0.5">{intervals.easy.label}</span>
-                  <span className="text-base sm:text-xl font-black">Easy</span>
-                </button>
-
-              </div>
-            )}
-          </div>
-
-        </div>
-      );
-    }
-
-    function App() {
-      const [view, setView] = useState("decks");
-      const [decks, setDecks] = useState([]);
-      const [cards, setCards] = useState([]);
-      const [mediaMap, setMediaMap] = useState({});
-      const [studyTarget, setStudyTarget] = useState(null);
-      const [loading, setLoading] = useState(false);
-
-      const loadData = async () => {
-        const d = await dbGetAll("decks");
-        const c = await dbGetAll("cards");
-        const m = await dbGetAll("media");
-
-        const mediaDictionary = {};
-        m.forEach(item => { mediaDictionary[item.filename] = item.dataUrl; });
-
-        setDecks(d);
-        setCards(c);
-        setMediaMap(mediaDictionary);
-      };
-
-      useEffect(() => { loadData(); }, []);
-
-      const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
+      // Handle APKG File Import & Extraction
+      const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
         if (!file) return;
 
-        setLoading(true);
+        setIsLoading(true);
+        setLoadingMsg('Extracting APKG package...');
+
         try {
-          if (file.name.endsWith(".apkg")) {
-            await parseApkg(file);
-            await loadData();
+          await clearMediaDB();
+          objectUrlCache.current.clear();
+
+          const zip = await JSZip.loadAsync(file);
+          
+          // 1. Extract and store Media Files into IndexedDB
+          setLoadingMsg('Processing & caching media assets...');
+          const mediaFile = zip.file('media');
+          if (mediaFile) {
+            const mediaJsonText = await mediaFile.async('text');
+            const mediaMap = JSON.parse(mediaJsonText); // {"0": "image.jpg", "1": "sound.mp3"}
+
+            for (const [key, filename] of Object.entries(mediaMap)) {
+              const zipItem = zip.file(key);
+              if (zipItem) {
+                const blob = await zipItem.async('blob');
+                await saveMediaToDB(filename, blob);
+              }
+            }
           }
+
+          // 2. Extract collection SQLite database
+          setLoadingMsg('Parsing SQLite collection database...');
+          let dbFile = zip.file('collection.anki2') || zip.file('collection.anki21');
+          if (!dbFile) {
+            throw new Error('Invalid APKG file: collection database not found.');
+          }
+
+          const dbBuffer = await dbFile.async('arraybuffer');
+          const SQL = await initSqlJs({
+            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+          });
+          const db = new SQL.Database(new Uint8Array(dbBuffer));
+
+          // 3. Query decks, notes, and cards
+          const parsedDecks = {};
+          const parsedCards = [];
+
+          // Get decks configuration
+          const decksQuery = db.exec("SELECT val FROM col");
+          if (decksQuery.length > 0) {
+            const colVal = JSON.parse(decksQuery[0].values[0][0]);
+            const deckMeta = colVal.decks || {};
+            Object.values(deckMeta).forEach(d => {
+              parsedDecks[d.id] = d.name;
+            });
+          }
+
+          // Query notes and cards
+          const notesStmt = db.prepare(`
+            SELECT cards.id, cards.did, notes.flds, notes.sfld, notes.tags, models.css, models.flds as model_flds
+            FROM cards 
+            JOIN notes ON cards.nid = notes.id 
+            JOIN models ON notes.mid = models.id
+          `);
+
+          while (notesStmt.step()) {
+            const row = notesStmt.getAsObject();
+            const fields = row.flds.split('\x1f');
+            const tags = row.tags ? row.tags.trim().split(/\s+/).filter(Boolean) : [];
+            const deckName = parsedDecks[row.did] || 'Default';
+
+            const frontField = fields[0] || '';
+            const backField = fields.slice(1).join('<br>') || '';
+
+            // Check for cloze deletions
+            const clozeOrdinals = extractClozeOrdinals(frontField);
+
+            if (clozeOrdinals.length > 0) {
+              // Generate a card instance per cloze ordinal
+              clozeOrdinals.forEach(ord => {
+                parsedCards.push({
+                  id: `${row.id}_c${ord}`,
+                  deckId: row.did,
+                  deckName: deckName,
+                  front: frontField,
+                  back: backField,
+                  tags: tags,
+                  isCloze: true,
+                  clozeOrdinal: ord,
+                  reps: 0,
+                  interval: 0,
+                  ease: 2.5,
+                  due: Date.now()
+                });
+              });
+            } else {
+              // Regular Card
+              parsedCards.push({
+                id: row.id,
+                deckId: row.did,
+                deckName: deckName,
+                front: frontField,
+                back: backField,
+                tags: tags,
+                isCloze: false,
+                reps: 0,
+                interval: 0,
+                ease: 2.5,
+                due: Date.now()
+              });
+            }
+          }
+
+          notesStmt.free();
+          db.close();
+
+          setCards(parsedCards);
+
+          // Group counts by Deck
+          const deckCounts = {};
+          parsedCards.forEach(c => {
+            deckCounts[c.deckName] = (deckCounts[c.deckName] || 0) + 1;
+          });
+          setDecks(deckCounts);
+
+          setIsLoading(false);
         } catch (err) {
-          alert("Import error: " + err.message);
-        } finally {
-          setLoading(false);
+          console.error(err);
+          alert('Error parsing APKG file: ' + err.message);
+          setIsLoading(false);
         }
-        e.target.value = null;
+      };
+
+      // Start Reviewing a Deck
+      const startReview = (deckName) => {
+        setSelectedDeck(deckName);
+        const queue = cards.filter(c => c.deckName === deckName);
+        setReviewQueue(queue);
+        setCurrentCardIndex(0);
+        setShowAnswer(false);
+        setView('review');
+      };
+
+      // Rating Action (SM-2)
+      const handleRating = (rating) => {
+        if (!currentCard) return;
+
+        const updatedCard = calculateSM2(currentCard, rating);
+        
+        // Update main card state
+        setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+
+        if (rating === 1) { // Re-queue 'Again' cards at the end of session
+          setReviewQueue(prev => [...prev, updatedCard]);
+        }
+
+        if (currentCardIndex + 1 < reviewQueue.length) {
+          setCurrentCardIndex(prev => prev + 1);
+          setShowAnswer(false);
+        } else {
+          // Finished review queue
+          setView('decks');
+        }
+      };
+
+      // Helper to build hierarchy tree from Anki tags (e.g. Science::Biology::Cells)
+      const buildTagTree = () => {
+        const tree = {};
+        cards.forEach(card => {
+          card.tags.forEach(tag => {
+            const parts = tag.split('::');
+            let current = tree;
+            parts.forEach((part, idx) => {
+              if (!current[part]) {
+                current[part] = { _fullTag: parts.slice(0, idx + 1).join('::'), _children: {} };
+              }
+              current = current[part]._children;
+            });
+          });
+        });
+        return tree;
+      };
+
+      // Recursive Tag Tree Component
+      const TagTreeNode = ({ name, node, depth = 0 }) => {
+        const [isOpen, setIsOpen] = React.useState(false);
+        const hasChildren = Object.keys(node._children).length > 0;
+
+        return (
+          <div style={{ paddingLeft: `${depth * 12}px` }} class="my-1">
+            <div 
+              class={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm font-medium transition ${
+                selectedTag === node._fullTag ? 'bg-brand-600 text-white' : 'hover:bg-gray-800 text-gray-300'
+              }`}
+              onClick={() => setSelectedTag(node._fullTag)}
+            >
+              <div class="flex items-center gap-2 truncate">
+                {hasChildren ? (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                    class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-white"
+                  >
+                    <i class={`fa-solid fa-chevron-${isOpen ? 'down' : 'right'} text-xs`}></i>
+                  </button>
+                ) : (
+                  <span class="w-5"></span>
+                )}
+                <i class="fa-solid fa-tag text-xs text-gray-400"></i>
+                <span class="truncate">{name}</span>
+              </div>
+            </div>
+            {isOpen && hasChildren && (
+              <div class="mt-1">
+                {Object.entries(node._children).map(([childName, childNode]) => (
+                  <TagTreeNode key={childNode._fullTag} name={childName} node={childNode} depth={depth + 1} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
       };
 
       return (
-        <div className="flex flex-col h-full w-full relative bg-ankiBg">
+        <div class="flex flex-col h-screen w-screen overflow-hidden bg-gray-950 text-gray-100">
           
-          {/* Header Bar */}
-          <header className="px-6 py-4 bg-slate-950/90 backdrop-blur-lg border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20 shadow-md">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl sm:text-3xl">⚡</span>
-              <div>
-                <h1 className="text-lg font-bold tracking-tight text-slate-100">AnkiFlow</h1>
-                <p className="text-xs font-mono text-slate-400">TABLET EDITION</p>
+          <!-- TOP NAVBAR -->
+          <header class="h-16 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 flex-shrink-0 z-10">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                <i class="fa-solid fa-bolt text-white text-xl"></i>
               </div>
+              <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                AnkiFlow <span class="text-xs text-brand-500 uppercase px-2 py-0.5 rounded bg-brand-500/10 font-semibold border border-brand-500/20">Tablet</span>
+              </h1>
             </div>
 
-            <div className="flex items-center gap-3">
+            <!-- Navigation Bar Controls -->
+            <div class="flex items-center gap-2 bg-gray-950 p-1 rounded-xl border border-gray-800">
               <button 
-                onClick={() => setView("decks")} 
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${view === "decks" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+                onClick={() => setView('decks')} 
+                class={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+                  view === 'decks' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
+                }`}
               >
-                Decks
+                <i class="fa-solid fa-layer-group"></i> Decks
               </button>
               <button 
-                onClick={() => setView("browser")} 
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${view === "browser" ? "bg-sky-600 text-white shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+                onClick={() => setView('browser')} 
+                class={`px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 ${
+                  view === 'browser' ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
+                }`}
               >
-                Card Browser
+                <i class="fa-solid fa-folder-tree"></i> Browser
               </button>
             </div>
+
+            <!-- File Upload Button -->
+            <label class="cursor-pointer bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+              <i class="fa-solid fa-file-import"></i>
+              <span>Import .apkg</span>
+              <input type="file" accept=".apkg" onChange={handleFileUpload} class="hidden" />
+            </label>
           </header>
 
-          {/* Main Body */}
-          <main className="flex-1 overflow-y-auto">
-            {loading && (
-              <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-                <div className="w-12 h-12 rounded-full border-4 border-slate-700 border-t-sky-400 animate-spin"></div>
-                <p className="text-slate-300 font-mono text-base">Extracting Media Assets & Flashcards...</p>
+          <!-- MAIN CONTAINER -->
+          <main class="flex-1 overflow-hidden relative">
+
+            {/* LOADING OVERLAY */}
+            {isLoading && (
+              <div class="absolute inset-0 bg-gray-950/80 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-4">
+                <div class="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-lg font-medium text-gray-200">{loadingMsg}</p>
               </div>
             )}
 
-            {!loading && view === "decks" && (
-              <DecksScreen 
-                decks={decks} 
-                cards={cards} 
-                onSelectDeck={(node) => {
-                  setStudyTarget({
-                    type: "deck",
-                    title: node.displayName,
-                    filterFn: (c) => node.allDeckIds.has(c.did) && !c.suspended
-                  });
-                  setView("study");
-                }}
-                onUpload={handleFileUpload}
-                onExportDeck={(node) => exportDeckToApkg(node.fullName, cards.filter(c => node.allDeckIds.has(c.did)))}
-                onDeleteDeck={async (node) => {
-                  if (confirm(`Delete "${node.displayName}"?`)) {
-                    await dbDeleteDeck(node.deckId, node.fullName, decks);
-                    loadData();
-                  }
-                }}
-              />
+            {/* VIEW 1: DECKS DASHBOARD */}
+            {view === 'decks' && (
+              <div class="h-full overflow-y-auto p-6 md:p-8 max-w-6xl mx-auto">
+                <div class="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 class="text-2xl font-bold text-white">Your Decks</h2>
+                    <p class="text-sm text-gray-400">Select a deck to begin your review session</p>
+                  </div>
+                  <div class="text-sm bg-gray-900 border border-gray-800 px-4 py-2 rounded-xl text-gray-400">
+                    Total Cards Loaded: <span class="text-white font-bold">{cards.length}</span>
+                  </div>
+                </div>
+
+                {Object.keys(decks).length === 0 ? (
+                  <div class="border-2 border-dashed border-gray-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center my-12">
+                    <div class="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center text-gray-600 text-2xl mb-4">
+                      <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-300 mb-2">No Decks Imported Yet</h3>
+                    <p class="text-gray-500 max-w-sm mb-6">Upload an Anki deck (.apkg file) using the top right import button to get started.</p>
+                  </div>
+                ) : (
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Object.entries(decks).map(([deckName, count]) => (
+                      <div 
+                        key={deckName}
+                        class="bg-gray-900/60 border border-gray-800 hover:border-gray-700 rounded-2xl p-6 transition flex flex-col justify-between hover:shadow-xl group"
+                      >
+                        <div>
+                          <div class="flex items-start justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-100 group-hover:text-brand-500 transition line-clamp-2">{deckName}</h3>
+                            <span class="bg-gray-800 text-gray-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-700">
+                              {count} cards
+                            </span>
+                          </div>
+                          <div class="flex items-center gap-4 text-xs text-gray-400 mb-6">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-dot text-brand-500"></i> New: {count}</span>
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-clock text-amber-500"></i> Review: 0</span>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={() => startReview(deckName)}
+                          class="w-full bg-gray-800 group-hover:bg-brand-600 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-md"
+                        >
+                          <i class="fa-solid fa-play text-xs"></i> Study Deck
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
-            {!loading && view === "browser" && (
-              <BrowserScreen cards={cards} decks={decks} onCardUpdate={loadData} />
+            {/* VIEW 2: REVIEW MODE */}
+            {view === 'review' && currentCard && (
+              <div class="h-full flex flex-col justify-between max-w-4xl mx-auto p-4 md:p-6">
+                <!-- Session Header -->
+                <div class="flex items-center justify-between text-sm text-gray-400 mb-2">
+                  <span class="font-medium text-gray-300 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-brand-500"></i> {selectedDeck}
+                  </span>
+                  <span>
+                    Card <strong class="text-white">{currentCardIndex + 1}</strong> of <strong class="text-white">{reviewQueue.length}</strong>
+                  </span>
+                </div>
+
+                <!-- CARD DISPLAY CONTAINER -->
+                <div class="flex-1 bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 flex flex-col justify-center overflow-y-auto my-2 relative shadow-2xl">
+                  
+                  {/* FRONT SIDE CONTENT */}
+                  <div 
+                    class="card-content text-lg md:text-xl text-gray-100 font-normal leading-relaxed text-center"
+                    dangerouslySetInnerHTML={{ __html: renderedContent.front }}
+                  />
+
+                  {/* REVEALED BACK SIDE CONTENT */}
+                  {showAnswer && (
+                    <div class="mt-8 pt-8 border-t border-gray-800/80 animate-fadeIn">
+                      <div 
+                        class="card-content text-lg md:text-xl text-gray-200 font-normal leading-relaxed text-center"
+                        dangerouslySetInnerHTML={{ __html: renderedContent.back }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <!-- BOTTOM TABLET TOUCH CONTROLS -->
+                <div class="pt-2">
+                  {!showAnswer ? (
+                    <button 
+                      onClick={() => setShowAnswer(true)}
+                      class="w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-5 rounded-2xl text-lg shadow-xl shadow-brand-600/20 active:scale-[0.99] transition flex items-center justify-center gap-3"
+                    >
+                      <i class="fa-solid fa-eye"></i> Show Answer
+                    </button>
+                  ) : (
+                    <div class="grid grid-cols-4 gap-3">
+                      {/* AGAIN BUTTON */}
+                      <button 
+                        onClick={() => handleRating(1)}
+                        class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 font-semibold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95"
+                      >
+                        <span class="text-xs uppercase tracking-wider font-bold opacity-80">Again</span>
+                        <span class="text-sm bg-red-500/20 px-2 py-0.5 rounded text-red-300">
+                          {getIntervalBadge(currentCard, 1)}
+                        </span>
+                      </button>
+
+                      {/* HARD BUTTON */}
+                      <button 
+                        onClick={() => handleRating(2)}
+                        class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 font-semibold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95"
+                      >
+                        <span class="text-xs uppercase tracking-wider font-bold opacity-80">Hard</span>
+                        <span class="text-sm bg-amber-500/20 px-2 py-0.5 rounded text-amber-300">
+                          {getIntervalBadge(currentCard, 2)}
+                        </span>
+                      </button>
+
+                      {/* GOOD BUTTON */}
+                      <button 
+                        onClick={() => handleRating(3)}
+                        class="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 font-semibold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95"
+                      >
+                        <span class="text-xs uppercase tracking-wider font-bold opacity-80">Good</span>
+                        <span class="text-sm bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300">
+                          {getIntervalBadge(currentCard, 3)}
+                        </span>
+                      </button>
+
+                      {/* EASY BUTTON */}
+                      <button 
+                        onClick={() => handleRating(4)}
+                        class="bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:text-cyan-300 font-semibold p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition active:scale-95"
+                      >
+                        <span class="text-xs uppercase tracking-wider font-bold opacity-80">Easy</span>
+                        <span class="text-sm bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-300">
+                          {getIntervalBadge(currentCard, 4)}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
-            {!loading && view === "study" && studyTarget && (
-              <StudyScreen studyTarget={studyTarget} allCards={cards} mediaMap={mediaMap} onCardUpdate={loadData} onBack={() => setView("decks")} />
+            {/* VIEW 3: CARD BROWSER */}
+            {view === 'browser' && (
+              <div class="h-full flex overflow-hidden">
+                <!-- SIDEBAR: TAG TREE & FILTERS -->
+                <aside class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col p-4 overflow-y-auto flex-shrink-0">
+                  <div class="flex items-center justify-between mb-4 px-2">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Tags & Structure</span>
+                    {selectedTag && (
+                      <button 
+                        onClick={() => setSelectedTag(null)}
+                        class="text-xs text-brand-400 hover:underline"
+                      >
+                        Clear Tag
+                      </button>
+                    )}
+                  </div>
+
+                  <div class="space-y-1">
+                    {Object.entries(buildTagTree()).map(([tagName, node]) => (
+                      <TagTreeNode key={node._fullTag} name={tagName} node={node} />
+                    ))}
+                  </div>
+                </aside>
+
+                <!-- MAIN BROWSER CONTENT -->
+                <section class="flex-1 flex flex-col overflow-hidden p-6 bg-gray-950">
+                  <!-- Search Bar -->
+                  <div class="mb-4 flex gap-3">
+                    <div class="relative flex-1">
+                      <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                      <input 
+                        type="text"
+                        placeholder="Search card content or front text..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        class="w-full bg-gray-900 border border-gray-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Cards Table / List -->
+                  <div class="flex-1 overflow-y-auto border border-gray-800 rounded-2xl bg-gray-900/40">
+                    <table class="w-full text-left text-sm text-gray-300 border-collapse">
+                      <thead class="bg-gray-900 text-xs uppercase text-gray-400 sticky top-0 border-b border-gray-800">
+                        <tr>
+                          <th class="p-4">Front Content</th>
+                          <th class="p-4">Deck</th>
+                          <th class="p-4">Tags</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-800/60">
+                        {cards
+                          .filter(card => {
+                            const matchesSearch = searchQuery === '' || 
+                              card.front.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              card.back.toLowerCase().includes(searchQuery.toLowerCase());
+                            const matchesTag = !selectedTag || card.tags.some(t => t.startsWith(selectedTag));
+                            return matchesSearch && matchesTag;
+                          })
+                          .map((card) => (
+                            <tr key={card.id} class="hover:bg-gray-800/40 transition">
+                              <td class="p-4 max-w-md truncate font-medium text-gray-200">
+                                {card.front.replace(/<[^>]*>?/gm, '')}
+                              </td>
+                              <td class="p-4 text-gray-400 whitespace-nowrap">{card.deckName}</td>
+                              <td class="p-4">
+                                <div class="flex flex-wrap gap-1">
+                                  {card.tags.map(tag => (
+                                    <span key={tag} class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-700">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
             )}
+
           </main>
         </div>
       );
-    }
+    };
 
-    function DeckTreeNode({ node, onSelectDeck, onExportDeck, onDeleteDeck, depth = 0 }) {
-      const [isOpen, setIsOpen] = useState(true);
-      const childNodes = Object.values(node.children);
-
-      return (
-        <div className="flex flex-col select-none">
-          <div 
-            onClick={() => onSelectDeck(node)}
-            className="group flex items-center justify-between p-5 my-1.5 bg-slate-900/80 hover:bg-slate-800/80 border border-white/10 hover:border-sky-500/40 rounded-2xl cursor-pointer transition active:scale-[0.99] shadow-sm"
-            style={{ marginLeft: `${depth * 24}px` }}
-          >
-            <div className="flex items-center space-x-4 flex-1 min-w-0 pr-4">
-              {childNodes.length > 0 ? (
-                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-slate-300 text-sm">
-                  {isOpen ? "▼" : "▶"}
-                </button>
-              ) : (
-                <span className="w-8 h-8 flex items-center justify-center text-slate-500 text-lg">🗂</span>
-              )}
-              <span className="font-bold text-slate-100 text-base sm:text-lg truncate group-hover:text-sky-300 transition">{node.displayName}</span>
-            </div>
-
-            <div className="flex items-center space-x-3 flex-shrink-0 text-xs sm:text-sm font-mono font-bold">
-              <span className="text-sky-400 bg-sky-950/60 border border-sky-500/30 px-3 py-1.5 rounded-xl">{node.newCount}</span>
-              <span className="text-rose-400 bg-rose-950/60 border border-rose-500/30 px-3 py-1.5 rounded-xl">{node.learningCount}</span>
-              <span className="text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1.5 rounded-xl">{node.reviewCount}</span>
-              <button onClick={(e) => { e.stopPropagation(); onExportDeck(node); }} title="Export .apkg" className="p-2 text-slate-400 hover:text-sky-400 text-lg ml-1">💾</button>
-              <button onClick={(e) => { e.stopPropagation(); onDeleteDeck(node); }} title="Delete" className="p-2 text-slate-500 hover:text-rose-400 text-lg">✕</button>
-            </div>
-          </div>
-
-          {childNodes.length > 0 && isOpen && (
-            <div className="flex flex-col border-l border-white/10 ml-5 pl-1">
-              {childNodes.map(child => (
-                <DeckTreeNode key={child.fullName} node={child} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} depth={depth + 1} />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    function DecksScreen({ decks, cards, onSelectDeck, onUpload, onExportDeck, onDeleteDeck }) {
-      const rootNodes = Object.values(useMemo(() => buildCleanDeckTree(decks, cards), [decks, cards]));
-
-      return (
-        <div className="max-w-5xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
-          <div className="border-2 border-dashed border-white/20 bg-slate-900/50 hover:border-sky-500/60 rounded-3xl p-8 text-center cursor-pointer transition">
-            <input type="file" accept=".apkg" onChange={onUpload} id="file-input" className="hidden" />
-            <label htmlFor="file-input" className="cursor-pointer space-y-3 block">
-              <span className="text-4xl block">📥</span>
-              <p className="font-bold text-base sm:text-lg text-slate-100">Import Anki Package (.apkg)</p>
-              <p className="text-xs sm:text-sm text-slate-400">Supports embedded images, cloze deletions, and nested deck paths</p>
-            </label>
-          </div>
-
-          <div className="space-y-3">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 mb-2 font-mono">Decks Overview</h2>
-            {rootNodes.map(node => (
-              <DeckTreeNode key={node.fullName} node={node} onSelectDeck={onSelectDeck} onExportDeck={onExportDeck} onDeleteDeck={onDeleteDeck} />
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
   </script>
 </body>
 </html>
