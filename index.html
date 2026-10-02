@@ -259,32 +259,32 @@
       if (notesRes.length > 0) {
         notesRes[0].values.forEach(row => {
           const [id, mid, flds, tags] = row;
-          const fields = flds.split("\x1f");
-          const tagList = tags ? tags.trim().split(/\s+/).filter(Boolean) : [];
-          notesMap.set(id, { id, fields, tags: tagList });
-        });
-      }
+    <script type="text/babel">
+      const { useState, useEffect, useRef, useMemo } = React;
 
-      const cardsRes = db.exec("SELECT id, nid, did, ord, queue, factor, reps, ivl, due FROM cards");
-      const cards = [];
-      if (cardsRes.length > 0) {
-        cardsRes[0].values.forEach(row => {
-          const [id, nid, did, ord, queue, factor, reps, ivl, due] = row;
-          const note = notesMap.get(nid);
-          if (note) {
-            cards.push({
-              id: String(id),
-              nid: String(nid),
-              did: String(did),
-              ord,
-              fields: note.fields,
-              tags: note.tags,
-              suspended: queue === -1,
-              interval: ivl || 0,
-              easeFactor: (factor || 2500) / 1000,
-              reps: reps || 0,
-              dueDate: due || Date.now()
-            });
+      // Helper to process cloze markup based on active card index (ord + 1) and side (front vs back)
+      function renderClozeText(text, cardOrd, isBackSide) {
+        if (!text) return "";
+        const targetIndex = (cardOrd || 0) + 1;
+        
+        // Regex matches {{c1::answer}}, {{c1::answer::hint}}, {{c1::multiline...}}
+        const clozeRegex = /\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}/gs;
+
+        return text.replace(clozeRegex, (match, clozeNumStr, answer, hint) => {
+          const clozeNum = parseInt(clozeNumStr, 10);
+          
+          if (clozeNum === targetIndex) {
+            if (isBackSide) {
+              // Back side: Highlight and reveal answer
+              return `<span class="cloze-revealed bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-500/40">${answer}</span>`;
+            } else {
+              // Front side: Hide answer, show hint or placeholder [...]
+              const displayHint = hint && hint.trim() ? `[${hint.trim()}]` : '[...]';
+              return `<span class="cloze-hidden text-amber-400 font-bold px-1.5 py-0.5 bg-amber-500/10 rounded border border-amber-500/30">${displayHint}</span>`;
+            }
+          } else {
+            // Non-active cloze deletions reveal their text neutrally (Anki standard)
+            return answer;
           }
         });
       }
@@ -723,60 +723,104 @@
                             className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
                             checked={selectedCardIds.has(c.id)} 
                             onChange={() => toggleSelectCard(c.id)}
-                          />
-                        </td>
-                        <td className="p-4 max-w-[220px] truncate text-slate-100 font-medium" dangerouslySetInnerHTML={{ __html: c.fields?.[0] || "" }} />
-                        <td className="p-4 max-w-[220px] truncate text-slate-300" dangerouslySetInnerHTML={{ __html: c.fields?.[1] || "" }} />
-                        <td className="p-4 text-slate-300">
-                          {(c.tags || []).map(t => (
-                            <span key={t} className="inline-block bg-slate-800 border border-white/10 text-slate-200 text-xs px-2.5 py-1 rounded-lg mr-1.5 my-0.5 font-mono">
-                              {t}
-                            </span>
-                          ))}
-                        </td>
-                        <td className="p-4 text-center font-mono text-xs">
-                          {c.suspended ? (
-                            <span className="text-amber-400 bg-amber-950/70 px-2.5 py-1 rounded-lg border border-amber-500/30 font-semibold">Suspended</span>
-                          ) : (
-                            <span className="text-emerald-400 bg-emerald-950/70 px-2.5 py-1 rounded-lg border border-emerald-500/30 font-semibold">Active</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+      function CardViewer({ card, isBackRevealed, mediaMap }) {
+        if (!card) return null;
 
-          </div>
-        </div>
-      );
-    }
+        // Extract and clean content with HTML entity decoding & media mapping
+        const processFieldContent = (content) => {
+          if (!content) return "";
+          let processed = content;
+          
+          // Apply media src blob replacements if present
+          if (mediaMap) {
+            Object.keys(mediaMap).forEach(fileName => {
+              const regex = new RegExp(`src=["'](.*?/)?${fileName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}["']`, 'gi');
+              processed = processed.replace(regex, `src="${mediaMap[fileName]}"`);
+            });
+          }
+          return processed;
+        };
 
-    function StudyScreen({ studyTarget, allCards, mediaMap, onCardUpdate, onBack }) {
-      const targetCards = useMemo(() => allCards.filter(studyTarget.filterFn), [allCards, studyTarget]);
-      const [currentIndex, setCurrentIndex] = useState(0);
-      const [showAnswer, setShowAnswer] = useState(false);
+        const isCloze = card.modelType === 'cloze' || card.type === 'cloze' || (card.front && card.front.includes('{{c'));
+        const cardOrd = card.ord !== undefined ? card.ord : 0;
 
-      const currentCard = targetCards[currentIndex];
+        let frontHTML = processFieldContent(card.front || "");
+        let backHTML = processFieldContent(card.back || "");
 
-      if (!currentCard) {
+        if (isCloze) {
+          frontHTML = renderClozeText(frontHTML, cardOrd, false);
+          backHTML = renderClozeText(backHTML || card.front, cardOrd, true);
+        }
+
         return (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-6">
-            <span className="text-6xl">🎉</span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100">Session Complete!</h2>
-            <p className="text-slate-400 text-base max-w-md">All review cards for this deck have been scheduled.</p>
-            <button 
-              onClick={onBack} 
-              className="px-8 py-4 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl text-lg font-bold shadow-xl transition active:scale-95"
-            >
-              Back to Decks
-            </button>
+          <div className="flex flex-col h-full w-full justify-center items-center p-6 select-text overflow-y-auto">
+            <div className="w-full max-w-3xl bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-8 shadow-2xl space-y-6">
+              {/* Front Side */}
+              <div 
+                className="prose prose-invert max-w-none text-xl sm:text-2xl font-medium text-slate-100 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: frontHTML }} 
+              />
+
+              {/* Divider & Back Side */}
+              {isBackRevealed && (
+                <div className="pt-6 border-t border-slate-800 animate-fadeIn space-y-4">
+                  <div className="text-xs uppercase tracking-widest text-emerald-400 font-semibold mb-2">Answer</div>
+                  <div 
+                    className="prose prose-invert max-w-none text-lg sm:text-xl text-slate-200 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: backHTML }} 
+                  />
+                </div>
+              )}
+            </div>
           </div>
         );
       }
 
-      const intervals = calculateIntervals(currentCard);
+      function createCardsFromNote(note) {
+        if (!note || !note.fields) return [];
+        
+        const isCloze = note.modelType === 'cloze' || (note.fields[0] && note.fields[0].includes('{{c'));
+        
+        if (isCloze) {
+          const text = note.fields.join(' ');
+          const clozeMatches = [...text.matchAll(/\{\{c(\d+)::/g)];
+          const ordSet = new Set(clozeMatches.map(m => parseInt(m[1], 10) - 1));
+          
+          if (ordSet.size === 0) ordSet.add(0); // Fallback to 1 card if no numbers found
+          
+          return Array.from(ordSet).map(ord => ({
+            id: `${note.id}_cloze_${ord}`,
+            noteId: note.id,
+            deckId: note.deckId,
+            ord: ord,
+            modelType: 'cloze',
+            front: note.fields[0] || "",
+            back: note.fields[1] || "",
+            tags: note.tags || [],
+            interval: note.interval || 0,
+            ease: note.ease || 2.5,
+            dueDate: note.dueDate || Date.now(),
+            state: note.state || 'new'
+          }));
+        }
+
+        // Standard Front/Back Card
+        return [{
+          id: note.id,
+          noteId: note.id,
+          deckId: note.deckId,
+          ord: 0,
+          modelType: 'standard',
+          front: note.fields[0] || "",
+          back: note.fields[1] || "",
+          tags: note.tags || [],
+          interval: note.interval || 0,
+          ease: note.ease || 2.5,
+          dueDate: note.dueDate || Date.now(),
+          state: note.state || 'new'
+        }];
+      }
+
 
       const handleRating = async (ratingType) => {
         const step = intervals[ratingType];
