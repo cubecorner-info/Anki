@@ -1,962 +1,979 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AnkiFlow Tablet Edition (Standalone Fix)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#070a12" />
+  <title>AnkiFlow • Modern Edition</title>
 
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
+            display: ['"Outfit"', 'sans-serif'],
+            mono: ['"Space Grotesk"', 'monospace'],
+          },
           colors: {
-            brand: { 400: '#a855f7', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9' },
-            neonPink: '#ec4899',
-            neonCyan: '#06b6d4',
-            neonGreen: '#10b981',
-            neonYellow: '#f59e0b',
-            again: '#f43f5e',
-            hard: '#f59e0b',
-            good: '#10b981',
-            easy: '#06b6d4'
+            vibes: {
+              black: '#070a12',
+              card: '#0f172a',
+              neonSky: '#38bdf8',
+              neonPink: '#f43f5e',
+              neonLime: '#a3e635',
+              neonPurple: '#a855f7',
+              graffitiYellow: '#facc15'
+            }
           }
         }
       }
     }
   </script>
 
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-  <!-- JSZip for APKG extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  
-  <!-- sql.js for SQLite decoding -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 
   <style>
     body {
+      background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, #070a12 80%);
+      color: #f8fafc;
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #030712;
-    }
-    .font-pop {
-      font-family: 'Space Grotesk', sans-serif;
-    }
-
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0b0f19; }
-    ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #374151; }
-
-    /* Media styling inside Anki rendered cards */
-    .card-content img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 1rem;
-      margin: 1.25rem auto;
-      border: 2px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-      display: block;
-    }
-    .card-content audio {
-      width: 100%;
-      margin: 1rem 0;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      -webkit-tap-highlight-color: transparent;
+      overflow: hidden;
+      touch-action: manipulation;
     }
 
-    /* Cloze Styling */
-    .cloze-placeholder {
+    .graffiti-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      background: linear-gradient(135deg, #38bdf8 0%, #a855f7 50%, #f43f5e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(168, 85, 247, 0.35);
+    }
+
+    .panel-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+    }
+
+    .pop-badge {
+      box-shadow: 3px 3px 0px rgba(0,0,0,0.8);
+    }
+
+    .cloze-bracket {
       color: #38bdf8;
       font-weight: 800;
-      background: rgba(56, 189, 248, 0.15);
-      padding: 0.2rem 0.6rem;
-      border-radius: 0.5rem;
-      border: 2px dashed #0284c7;
+      background: rgba(56, 189, 248, 0.2);
+      border: 2px dashed #38bdf8;
+      padding: 4px 14px;
+      border-radius: 12px;
+      font-size: 1.1em;
       display: inline-block;
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
-    }
-    .cloze-revealed {
-      color: #34d399;
-      font-weight: 800;
-      background: rgba(52, 211, 153, 0.2);
-      padding: 0.2rem 0.6rem;
-      border-radius: 0.5rem;
-      border: 2px solid #10b981;
-      display: inline-block;
-      box-shadow: 0 0 18px rgba(52, 211, 153, 0.35);
-    }
-    .cloze-inactive {
-      color: #cbd5e1;
-      font-weight: 600;
     }
 
-    /* Neo-brutal pop glow elements */
-    .pop-card {
-      background: #0f172a;
-      border: 2px solid #1e293b;
-      box-shadow: 6px 6px 0px #1e293b;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    .cloze-reveal {
+      color: #a3e635;
+      font-weight: 800;
+      background: rgba(163, 230, 53, 0.2);
+      border: 2px solid #a3e635;
+      padding: 4px 14px;
+      border-radius: 12px;
+      display: inline-block;
+      font-size: 1.1em;
     }
-    .pop-card:hover {
-      border-color: #8b5cf6;
-      box-shadow: 8px 8px 0px #8b5cf6;
-      transform: translate(-2px, -2px);
+
+    .card-content img {
+      max-width: 100%;
+      max-height: 48vh;
+      object-fit: contain;
+      border-radius: 1.25rem;
+      margin: 1.25rem auto;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: block;
     }
-    .pop-btn {
-      box-shadow: 4px 4px 0px #000;
-      transition: all 0.15s ease;
+
+    .resizer-handle {
+      width: 8px;
+      cursor: col-resize;
+      background: rgba(255, 255, 255, 0.08);
+      transition: background 0.2s;
     }
-    .pop-btn:active {
-      box-shadow: 0px 0px 0px #000;
-      transform: translate(3px, 3px);
+
+    .resizer-handle:hover, .resizer-handle.dragging {
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
     }
   </style>
 </head>
-<body class="bg-gray-950 text-gray-100 font-sans antialiased h-screen overflow-hidden select-none">
+<body class="h-screen w-screen flex flex-col relative text-slate-100 select-none">
 
-  <div class="flex flex-col h-screen w-screen overflow-hidden">
-    
-    <!-- HEADER BAR -->
-    <header class="h-16 bg-gray-900/90 backdrop-blur-md border-b-2 border-gray-800 flex items-center justify-between px-6 flex-shrink-0 z-20">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-neonPink to-neonCyan flex items-center justify-center shadow-lg shadow-brand-500/30">
-          <i class="fa-solid fa-fire-flame-curved text-white text-xl"></i>
-        </div>
-        <h1 class="text-xl font-black font-pop tracking-wider bg-gradient-to-r from-white via-purple-200 to-pink-400 bg-clip-text text-transparent">
-          ANKIFLOW <span class="text-xs font-sans text-neonCyan font-extrabold px-2 py-0.5 rounded-md bg-neonCyan/10 border border-neonCyan/30 uppercase">Tablet Pop</span>
-        </h1>
-      </div>
+  <!-- Header -->
+  <header class="px-8 py-5 bg-slate-950/90 border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20">
+    <div class="flex items-center space-x-3">
+      <span class="text-3xl animate-bounce">⚡</span>
+      <h1 class="text-2xl graffiti-title tracking-tight">AnkiFlow</h1>
+      <span class="text-[10px] font-mono tracking-widest bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 px-2.5 py-1 rounded-full font-bold uppercase">Pro Tablet</span>
+    </div>
+    <div class="flex gap-3">
+      <button id="nav-decks" onclick="switchView('decks')" class="px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-sky-500 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.4)] active:scale-95 transition">DECKS</button>
+      <button id="nav-browser" onclick="switchView('browser')" class="px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition">BROWSER</button>
+    </div>
+  </header>
 
-      <!-- Navigation Tabs -->
-      <div class="flex items-center gap-2 bg-gray-950 p-1.5 rounded-2xl border border-gray-800">
-        <button id="nav-btn-decks" onclick="switchView('decks')" class="px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-brand-600 text-white shadow-md">
-          <i class="fa-solid fa-cubes"></i> Decks
-        </button>
-        <button id="nav-btn-browser" onclick="switchView('browser')" class="px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200">
-          <i class="fa-solid fa-folder-tree"></i> Browser
-        </button>
-      </div>
-
-      <!-- Import Button -->
-      <label class="cursor-pointer bg-gradient-to-r from-brand-600 to-neonPink hover:brightness-110 text-white px-5 py-2.5 rounded-xl text-sm font-extrabold transition flex items-center gap-2 pop-btn">
-        <i class="fa-solid fa-file-arrow-up text-base"></i>
-        <span>Import APKG</span>
-        <input type="file" id="apkg-file-input" accept=".apkg" onchange="handleFileUpload(event)" class="hidden" />
-      </label>
-    </header>
-
-    <main class="flex-1 overflow-hidden relative">
-      
-      <!-- Loading Overlay -->
-      <div id="loading-overlay" class="hidden absolute inset-0 bg-gray-950/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-4">
-        <div class="relative w-16 h-16">
-          <div class="absolute inset-0 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-          <div class="absolute inset-2 border-4 border-neonPink border-b-transparent rounded-full animate-spin"></div>
-        </div>
-        <p id="loading-msg" class="text-lg font-bold text-gray-200 font-pop tracking-wider">Loading Collection...</p>
-      </div>
-
-      <!-- VIEW 1: DECKS CONTAINER -->
-      <div id="view-decks" class="h-full overflow-y-auto p-6 md:p-8 max-w-6xl mx-auto">
-        <div class="flex items-center justify-between mb-8">
-          <div>
-            <h2 class="text-3xl font-black text-white font-pop tracking-tight">Decks Hub</h2>
-            <p class="text-sm text-gray-400 mt-1">Select a deck below to start your study session</p>
-          </div>
-          <div class="text-sm bg-gray-900 border border-gray-800 px-4 py-2 rounded-2xl text-gray-400 font-bold">
-            Total Cards Loaded: <span id="total-card-count" class="text-neonCyan font-extrabold">0</span>
-          </div>
-        </div>
-
-        <div id="decks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-
-      <!-- VIEW 2: REVIEW MODE CONTAINER -->
-      <div id="view-review" class="hidden h-full flex flex-col justify-between max-w-4xl mx-auto p-4 md:p-6">
-        <div class="flex items-center justify-between text-sm text-gray-400 mb-2">
-          <span id="review-deck-name" class="font-extrabold text-gray-200 flex items-center gap-2 font-pop">
-            <i class="fa-solid fa-layer-group text-neonPink"></i> Deck Name
-          </span>
-          <span class="font-bold bg-gray-900 border border-gray-800 px-3.5 py-1.5 rounded-xl">
-            Card <strong id="review-current-num" class="text-neonCyan">0</strong> / <strong id="review-total-num" class="text-white">0</strong>
-          </span>
-        </div>
-
-        <!-- Card Body -->
-        <div class="flex-1 bg-gray-900 border-2 border-gray-800 rounded-3xl p-6 md:p-10 flex flex-col justify-center overflow-y-auto my-2 relative shadow-2xl">
-          <div id="review-front-content" class="card-content text-xl md:text-2xl text-gray-100 font-normal leading-relaxed text-center">
-            <!-- Front html content -->
-          </div>
-
-          <div id="review-back-wrapper" class="hidden mt-8 pt-8 border-t-2 border-gray-800/80">
-            <div id="review-back-content" class="card-content text-xl md:text-2xl text-gray-200 font-normal leading-relaxed text-center">
-              <!-- Back html content -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Rating Action Bar -->
-        <div class="pt-2">
-          <button id="show-answer-btn" onclick="revealAnswer()" class="w-full bg-gradient-to-r from-brand-600 via-neonPink to-brand-600 text-white font-black py-5 rounded-2xl text-xl shadow-xl pop-btn flex items-center justify-center gap-3 font-pop">
-            <i class="fa-solid fa-eye text-2xl"></i> SHOW ANSWER
-          </button>
-
-          <div id="rating-buttons" class="hidden grid grid-cols-4 gap-3">
-            <button onclick="submitRating(1)" class="bg-red-500/10 hover:bg-red-500/20 border-2 border-red-500/40 text-red-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
-              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Again</span>
-              <span id="badge-again" class="text-xs bg-red-500/20 px-2.5 py-0.5 rounded-md text-red-300 font-bold">&lt;1m</span>
-            </button>
-            <button onclick="submitRating(2)" class="bg-amber-500/10 hover:bg-amber-500/20 border-2 border-amber-500/40 text-amber-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
-              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Hard</span>
-              <span id="badge-hard" class="text-xs bg-amber-500/20 px-2.5 py-0.5 rounded-md text-amber-300 font-bold">1d</span>
-            </button>
-            <button onclick="submitRating(3)" class="bg-emerald-500/10 hover:bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
-              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Good</span>
-              <span id="badge-good" class="text-xs bg-emerald-500/20 px-2.5 py-0.5 rounded-md text-emerald-300 font-bold">1d</span>
-            </button>
-            <button onclick="submitRating(4)" class="bg-cyan-500/10 hover:bg-cyan-500/20 border-2 border-cyan-500/40 text-cyan-400 font-black p-4 rounded-2xl flex flex-col items-center justify-center gap-1 transition pop-btn">
-              <span class="text-xs uppercase tracking-widest opacity-90 font-pop">Easy</span>
-              <span id="badge-easy" class="text-xs bg-cyan-500/20 px-2.5 py-0.5 rounded-md text-cyan-300 font-bold">4d</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- VIEW 3: CARD BROWSER WITH RESIZABLE DRAGGABLE DIVIDER -->
-      <div id="view-browser" class="hidden h-full flex overflow-hidden relative select-none">
-        
-        <!-- RESIZABLE TAG SIDEBAR -->
-        <aside id="tag-sidebar" style="width: 300px;" class="bg-gray-900 border-r-2 border-gray-800 flex flex-col p-4 overflow-y-auto flex-shrink-0">
-          <div class="flex items-center justify-between mb-4 px-1">
-            <span class="text-xs font-black text-gray-400 uppercase tracking-widest font-pop">Tags Explorer</span>
-            <button id="clear-tag-btn" onclick="filterByTag(null)" class="hidden text-xs text-neonPink hover:underline font-bold">
-              Clear Filter
-            </button>
-          </div>
-          <div id="tag-tree-container" class="space-y-1">
-            <!-- Tag Tree Nodes rendered here -->
-          </div>
-        </aside>
-
-        <!-- DRAGGABLE RESIZER HANDLE BAR -->
-        <div id="sidebar-resizer" class="w-3 hover:w-3.5 bg-gray-800 hover:bg-brand-500 cursor-col-resize flex-shrink-0 transition-all flex items-center justify-center z-20 active:bg-brand-400 shadow-xl" title="Drag to resize tag sidebar">
-          <div class="w-1 h-8 bg-gray-600 rounded-full"></div>
-        </div>
-
-        <!-- MAIN TABLE CONTENT -->
-        <section class="flex-1 flex flex-col overflow-hidden p-6 bg-gray-950">
-          <div class="mb-4 flex gap-3 items-center">
-            <div class="relative flex-1">
-              <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
-              <input 
-                type="text" 
-                id="browser-search-input" 
-                placeholder="Search card content..." 
-                oninput="renderBrowserTable()"
-                class="w-full bg-gray-900 border-2 border-gray-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-brand-500 transition font-medium"
-              />
-            </div>
-            <div id="active-tag-indicator" class="hidden bg-neonPink/10 border border-neonPink/30 text-neonPink text-xs px-3.5 py-3 rounded-2xl font-bold flex items-center gap-2">
-              <span id="active-tag-text">Tag: </span>
-            </div>
-          </div>
-
-          <div class="flex-1 overflow-y-auto border-2 border-gray-800 rounded-2xl bg-gray-900/40">
-            <table class="w-full text-left text-sm text-gray-300 border-collapse">
-              <thead class="bg-gray-900 text-xs uppercase text-gray-400 sticky top-0 border-b-2 border-gray-800 font-pop">
-                <tr>
-                  <th class="p-4">Front Content</th>
-                  <th class="p-4">Deck Name</th>
-                  <th class="p-4">Tags</th>
-                  <th class="p-4 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody id="browser-table-body" class="divide-y divide-gray-800/60">
-                <!-- Data rows injected here -->
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-      </div>
-
-    </main>
-  </div>
+  <main id="app-root" class="flex-1 overflow-y-auto relative">
+    <!-- Views Render Here -->
+  </main>
 
   <script>
-    // --- INDEXEDDB MEDIA UTILITY ---
-    const DB_NAME = 'AnkiFlowMediaDB';
-    const STORE_NAME = 'media';
+    const DB_NAME = "AnkiFlowNativeDB";
+    const DB_VERSION = 1;
 
-    const initDB = () => {
+    function openDB() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = (e) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
           const db = e.target.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME);
+          if (!db.objectStoreNames.contains("decks")) db.createObjectStore("decks", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("cards")) {
+            const cardStore = db.createObjectStore("cards", { keyPath: "id" });
+            cardStore.createIndex("did", "did", { unique: false });
           }
+          if (!db.objectStoreNames.contains("media")) db.createObjectStore("media", { keyPath: "name" });
         };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    };
-
-    const saveMediaToDB = async (filename, blob) => {
-      const db = await initDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).put(blob, filename.toLowerCase());
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    };
-
-    const getMediaFromDB = async (filename) => {
-      const db = await initDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const req = tx.objectStore(STORE_NAME).get(filename.toLowerCase());
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
-    };
+    }
 
-    const clearMediaDB = async () => {
-      const db = await initDB();
+    async function dbPutBatch(storeName, items) {
+      const db = await openDB();
       return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).clear();
+        const tx = db.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        items.forEach(item => store.put(item));
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
-    };
+    }
 
-    // --- APPLICATION STATE ---
-    let state = {
-      view: 'decks',
-      decks: {},
-      cards: [],
-      selectedDeck: null,
-      reviewQueue: [],
-      currentCardIndex: 0,
-      showAnswer: false,
-      selectedTag: null,
-      objectUrlCache: new Map()
-    };
-
-    function parseCloze(text, targetOrdinal, isBack) {
-      if (!text) return '';
-      const regex = /\{\{c(\d+)::([^:]*?)(?:::(.*?))?\}\}/gs;
-
-      return text.replace(regex, (match, ord, answer, hint) => {
-        const ordinal = parseInt(ord, 10);
-        if (ordinal === targetOrdinal) {
-          if (isBack) {
-            return `<span class="cloze-revealed">${answer}</span>`;
-          } else {
-            const displayHint = hint && hint.trim() ? hint.trim() : '...';
-            return `<span class="cloze-placeholder">[${displayHint}]</span>`;
-          }
-        } else {
-          return `<span class="cloze-inactive">${answer}</span>`;
-        }
+    async function dbGetAll(storeName) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
       });
     }
 
-    function extractClozeOrdinals(text) {
-      if (!text) return [];
-      const regex = /\{\{c(\d+)::/g;
-      const ordinals = new Set();
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        ordinals.add(parseInt(match[1], 10));
-      }
-      return Array.from(ordinals);
+    async function dbGetMediaMap() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("media", "readonly");
+        const store = tx.objectStore("media");
+        const req = store.getAll();
+        req.onsuccess = () => {
+          const map = {};
+          (req.result || []).forEach(item => {
+            const blob = new Blob([item.data]);
+            map[item.name.toLowerCase()] = URL.createObjectURL(blob);
+          });
+          resolve(map);
+        };
+        req.onerror = () => reject(req.error);
+      });
     }
 
-    function stripHTML(html) {
-      if (!html) return '';
-      return html
-        .replace(/\{\{c\d+::(.*?)(?:::.*?)?\}\}/g, '$1')
-        .replace(/<[^>]*>?/gm, '')
-        .trim();
+    async function dbUpdateCard(card) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("cards", "readwrite");
+        const store = tx.objectStore("cards");
+        store.put(card);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
     }
 
-    function calculateSM2(card, rating) {
-      let interval = card.interval || 0;
-      let reps = card.reps || 0;
-      let ease = card.ease || 2.5;
-
-      if (rating === 1) { // Again
-        reps = 0;
-        interval = 0;
-      } else {
-        if (rating === 2) { // Hard
-          ease = Math.max(1.3, ease - 0.15);
-          interval = interval === 0 ? 1 : Math.round(interval * 1.2);
-        } else if (rating === 3) { // Good
-          if (reps === 0) interval = 1;
-          else if (reps === 1) interval = 6;
-          else interval = Math.round(interval * ease);
-        } else if (rating === 4) { // Easy
-          ease = ease + 0.15;
-          if (reps === 0) interval = 4;
-          else if (reps === 1) interval = 10;
-          else interval = Math.round(interval * ease * 1.3);
-        }
-        reps += 1;
-      }
-
-      const now = new Date();
-      const dueDate = new Date(now);
-      if (interval === 0) {
-        dueDate.setMinutes(dueDate.getMinutes() + 1);
-      } else {
-        dueDate.setDate(dueDate.getDate() + interval);
-      }
-
-      return {
-        ...card,
-        reps,
-        interval,
-        ease,
-        due: dueDate.getTime(),
-        lastReviewed: now.getTime()
-      };
+    async function dbUpdateCardsBatch(cards) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("cards", "readwrite");
+        const store = tx.objectStore("cards");
+        cards.forEach(c => store.put(c));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
     }
 
-    function getIntervalBadgeText(card, rating) {
-      const nextCard = calculateSM2(card, rating);
-      if (nextCard.interval === 0) return '<1m';
-      if (nextCard.interval === 1) return '1d';
-      return `${nextCard.interval}d`;
+    let state = {
+      view: 'decks',
+      decks: [],
+      cards: [],
+      mediaMap: {},
+      studyTarget: null,
+      studyCards: [],
+      studyIndex: 0,
+      showAnswer: false,
+      showExtraInfo: false,
+      searchQuery: '',
+      selectedTagPrefix: '',
+      expandedTags: new Set(),
+      selectedCardIds: new Set(),
+      sidebarWidth: 320,
+      isResizing: false
+    };
+
+    async function refreshData() {
+      state.decks = await dbGetAll("decks");
+      state.cards = await dbGetAll("cards");
+      state.mediaMap = await dbGetMediaMap();
+      render();
     }
 
-    let isDragging = false;
-    const resizer = document.getElementById('sidebar-resizer');
-    const tagSidebar = document.getElementById('tag-sidebar');
-
-    function onStartDrag(e) {
-      isDragging = true;
-      document.body.style.cursor = 'col-resize';
+    function switchView(viewName) {
+      state.view = viewName;
+      document.getElementById('nav-decks').className = viewName === 'decks' 
+        ? "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-sky-500 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.4)] active:scale-95 transition" 
+        : "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition";
+      document.getElementById('nav-browser').className = viewName === 'browser' 
+        ? "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-sky-500 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.4)] active:scale-95 transition" 
+        : "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition";
+      render();
     }
-
-    function onMoveDrag(e) {
-      if (!isDragging) return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const newWidth = Math.max(180, Math.min(600, clientX));
-      tagSidebar.style.width = `${newWidth}px`;
-    }
-
-    function onStopDrag() {
-      if (isDragging) {
-        isDragging = false;
-        document.body.style.cursor = 'default';
-      }
-    }
-
-    resizer.addEventListener('mousedown', onStartDrag);
-    resizer.addEventListener('touchstart', onStartDrag);
-    window.addEventListener('mousemove', onMoveDrag);
-    window.addEventListener('touchmove', onMoveDrag);
-    window.addEventListener('mouseup', onStopDrag);
-    window.addEventListener('touchend', onStopDrag);
 
     async function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      showLoading('Unpacking APKG archive...');
+      const root = document.getElementById('app-root');
+      root.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full p-8 space-y-6">
+          <div class="w-16 h-16 rounded-full border-4 border-fuchsia-500 border-t-amber-400 animate-spin"></div>
+          <p class="text-xl font-bold font-display text-sky-400">UNPACKING ANKI DECK PACKAGE...</p>
+        </div>`;
 
       try {
-        await clearMediaDB();
-        state.objectUrlCache.clear();
-
         const zip = await JSZip.loadAsync(file);
         
-        showLoading('Extracting media files...');
-        const mediaFile = zip.file('media');
-        if (mediaFile) {
-          const mediaJsonText = await mediaFile.async('text');
-          const mediaMap = JSON.parse(mediaJsonText);
+        // Universal APKG Database Finder (supports V1, V2, V3/V18)
+        let dbFile = zip.file("collection.anki21b") || zip.file("collection.anki21") || zip.file("collection.anki2");
+        if (!dbFile) {
+          const files = Object.keys(zip.files);
+          const sqliteCandidate = files.find(f => f.includes("collection.anki"));
+          if (sqliteCandidate) dbFile = zip.file(sqliteCandidate);
+        }
+        
+        if (!dbFile) throw new Error("Could not locate Anki collection database in file.");
 
-          for (const [key, filename] of Object.entries(mediaMap)) {
-            const zipItem = zip.file(key);
-            if (zipItem) {
-              const blob = await zipItem.async('blob');
-              await saveMediaToDB(filename, blob);
-            }
+        const dbBuffer = await dbFile.async("uint8array");
+        const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${f}` });
+        const db = new SQL.Database(dbBuffer);
+
+        let mediaNameMap = {};
+        const mediaJsonFile = zip.file("media");
+        if (mediaJsonFile) {
+          const mediaJsonStr = await mediaJsonFile.async("text");
+          try { mediaNameMap = JSON.parse(mediaJsonStr); } catch (e) {}
+        }
+
+        const mediaItems = [];
+        for (const [zipKey, realName] of Object.entries(mediaNameMap)) {
+          const imgFile = zip.file(zipKey);
+          if (imgFile) {
+            const data = await imgFile.async("uint8array");
+            mediaItems.push({ name: realName.toLowerCase(), data });
+          }
+        }
+        if (mediaItems.length > 0) await dbPutBatch("media", mediaItems);
+
+        // Safe table schema inspector to bypass version lock
+        const tablesRes = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+        const existingTables = new Set(tablesRes[0]?.values.map(v => v[0]) || []);
+
+        let decks = [];
+        if (existingTables.has("col")) {
+          const colInfo = db.exec("PRAGMA table_info(col)")[0].values.map(v => v[1]);
+          let decksJsonRaw = null;
+
+          if (colInfo.includes("decks")) {
+            const res = db.exec("SELECT decks FROM col");
+            decksJsonRaw = res[0]?.values[0]?.[0];
+          }
+
+          if (decksJsonRaw) {
+            try {
+              const decksObj = JSON.parse(decksJsonRaw);
+              for (const [id, d] of Object.entries(decksObj)) {
+                if (d.name && d.name !== "Default") {
+                  decks.push({ id: String(d.id), name: d.name.replace(/[\x1f\u001f]/g, "::").trim() });
+                }
+              }
+            } catch (e) {}
           }
         }
 
-        showLoading('Reading SQLite Database Schema...');
-        let dbFile = zip.file('collection.anki2') || zip.file('collection.anki21');
-        if (!dbFile) {
-          throw new Error('Invalid APKG package: collection database not found.');
-        }
-
-        const dbBuffer = await dbFile.async('arraybuffer');
-        const SQL = await initSqlJs({
-          locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-        });
-        const db = new SQL.Database(new Uint8Array(dbBuffer));
-
-        const parsedDecks = {};
-
-        // ROBUST SCHEMA-SAFE DECK PARSER (Resolves "no such column val" error)
-        try {
-          // Attempt 1: Legacy Anki schema (col.decks)
-          const colDecksQuery = db.exec("SELECT decks FROM col");
-          if (colDecksQuery.length > 0 && colDecksQuery[0].values[0][0]) {
-            const decksJson = JSON.parse(colDecksQuery[0].values[0][0]);
-            Object.values(decksJson).forEach(d => {
-              parsedDecks[d.id] = d.name;
+        if (decks.length === 0 && existingTables.has("decks")) {
+          const res = db.exec("SELECT id, name FROM decks");
+          if (res.length > 0) {
+            res[0].values.forEach(row => {
+              decks.push({ id: String(row[0]), name: String(row[1]).replace(/[\x1f\u001f]/g, "::").trim() });
             });
           }
-        } catch (e1) {
-          try {
-            // Attempt 2: Anki 2.1.x schema (col.val)
-            const colValQuery = db.exec("SELECT val FROM col");
-            if (colValQuery.length > 0 && colValQuery[0].values[0][0]) {
-              const colVal = JSON.parse(colValQuery[0].values[0][0]);
-              const deckMeta = colVal.decks || {};
-              Object.values(deckMeta).forEach(d => {
-                parsedDecks[d.id] = d.name;
-              });
-            }
-          } catch (e2) {
-            try {
-              // Attempt 3: Anki 21 modern schema (config table)
-              const configQuery = db.exec("SELECT val FROM config WHERE key = 'decks'");
-              if (configQuery.length > 0 && configQuery[0].values[0][0]) {
-                const deckMeta = JSON.parse(configQuery[0].values[0][0]);
-                Object.values(deckMeta).forEach(d => {
-                  parsedDecks[d.id] = d.name;
+        }
+
+        // Direct Notes & Cards Extraction
+        const notesMap = new Map();
+        if (existingTables.has("notes")) {
+          const notesRes = db.exec("SELECT id, mid, flds, tags FROM notes");
+          if (notesRes.length > 0) {
+            notesRes[0].values.forEach(row => {
+              const [id, mid, flds, tags] = row;
+              const fields = (flds || "").split("\x1f");
+              const tagList = tags ? tags.trim().split(/\s+/).filter(Boolean) : [];
+              notesMap.set(String(id), { id: String(id), fields, tags: tagList });
+            });
+          }
+        }
+
+        const cards = [];
+        if (existingTables.has("cards")) {
+          const cardsRes = db.exec("SELECT id, nid, did, ord, queue, factor, reps, ivl, due FROM cards");
+          if (cardsRes.length > 0) {
+            cardsRes[0].values.forEach(row => {
+              const [id, nid, did, ord, queue, factor, reps, ivl, due] = row;
+              const note = notesMap.get(String(nid));
+              if (note) {
+                cards.push({
+                  id: String(id),
+                  nid: String(nid),
+                  did: String(did),
+                  ord: ord || 0,
+                  fields: note.fields,
+                  tags: note.tags,
+                  suspended: queue === -1,
+                  interval: ivl || 0,
+                  easeFactor: (factor || 2500) / 1000,
+                  reps: reps || 0,
+                  dueDate: due || Date.now()
                 });
               }
-            } catch (e3) {
-              console.warn("Could not parse deck metadata JSON; defaulting to generic deck names.");
-            }
-          }
-        }
-
-        const parsedCards = [];
-
-        // Fetch cards and notes safely
-        const notesStmt = db.prepare(`
-          SELECT cards.id AS cid, cards.did, cards.ord, notes.flds, notes.tags
-          FROM cards 
-          JOIN notes ON cards.nid = notes.id
-        `);
-
-        while (notesStmt.step()) {
-          const row = notesStmt.getAsObject();
-          const fields = row.flds ? row.flds.split('\x1f') : [''];
-          const tags = row.tags ? row.tags.trim().split(/\s+/).filter(Boolean) : [];
-          const deckName = parsedDecks[row.did] || 'Default Deck';
-
-          const frontField = fields[0] || '';
-          const backField = fields.slice(1).join('<br>') || '';
-
-          const clozeOrdinals = extractClozeOrdinals(frontField);
-
-          if (clozeOrdinals.length > 0) {
-            clozeOrdinals.forEach(ord => {
-              parsedCards.push({
-                id: `${row.cid}_c${ord}`,
-                deckId: row.did,
-                deckName: deckName,
-                front: frontField,
-                back: backField,
-                tags: tags,
-                isCloze: true,
-                clozeOrdinal: ord,
-                suspended: false,
-                reps: 0,
-                interval: 0,
-                ease: 2.5,
-                due: Date.now()
-              });
-            });
-          } else {
-            parsedCards.push({
-              id: row.cid,
-              deckId: row.did,
-              deckName: deckName,
-              front: frontField,
-              back: backField,
-              tags: tags,
-              isCloze: false,
-              suspended: false,
-              reps: 0,
-              interval: 0,
-              ease: 2.5,
-              due: Date.now()
             });
           }
         }
 
-        notesStmt.free();
         db.close();
 
-        state.cards = parsedCards;
+        if (decks.length === 0) {
+          decks.push({ id: "1", name: file.name.replace(".apkg", "") });
+          cards.forEach(c => c.did = "1");
+        }
 
-        const deckCounts = {};
-        parsedCards.forEach(c => {
-          deckCounts[c.deckName] = (deckCounts[c.deckName] || 0) + 1;
-        });
-        state.decks = deckCounts;
-
-        document.getElementById('total-card-count').innerText = parsedCards.length;
-
-        hideLoading();
-        renderDecksView();
-        renderTagTree();
+        await dbPutBatch("decks", decks);
+        await dbPutBatch("cards", cards);
+        await refreshData();
       } catch (err) {
-        console.error(err);
-        alert('Error importing APKG file: ' + err.message);
-        hideLoading();
+        alert("Import failed: " + err.message);
+        render();
       }
     }
 
-    function switchView(targetView) {
-      state.view = targetView;
-      
-      document.getElementById('view-decks').classList.add('hidden');
-      document.getElementById('view-review').classList.add('hidden');
-      document.getElementById('view-browser').classList.add('hidden');
+    // Comprehensive Cloze Parsing Engine
+    function renderCardField(html, isFront = true, cardOrd = 0) {
+      if (!html) return "";
+      let processed = html;
 
-      document.getElementById('nav-btn-decks').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200";
-      document.getElementById('nav-btn-browser').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 text-gray-400 hover:text-gray-200";
+      processed = processed.replace(/src=["']([^"']+)["']/gi, (match, src) => {
+        const cleanName = src.split('/').pop().toLowerCase();
+        if (state.mediaMap[cleanName]) {
+          return `src="${state.mediaMap[cleanName]}"`;
+        }
+        return match;
+      });
 
-      if (targetView === 'decks') {
-        document.getElementById('view-decks').classList.remove('hidden');
-        document.getElementById('nav-btn-decks').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-brand-600 text-white shadow-md";
-        renderDecksView();
-      } else if (targetView === 'browser') {
-        document.getElementById('view-browser').classList.remove('hidden');
-        document.getElementById('nav-btn-browser').className = "px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 bg-brand-600 text-white shadow-md";
-        renderTagTree();
-        renderBrowserTable();
-      } else if (targetView === 'review') {
-        document.getElementById('view-review').classList.remove('hidden');
-      }
+      const clozeRegex = /\{\{c(\d+)::(.*?)\}\}/gi;
+      const targetOrd = cardOrd + 1;
+
+      processed = processed.replace(clozeRegex, (match, numStr, body) => {
+        const num = parseInt(numStr);
+        if (num !== targetOrd) {
+          // Non-active cloze deletions show pure answer text
+          return body.split("::")[0];
+        }
+
+        const parts = body.split("::");
+        const answerText = parts[0];
+        const hintText = parts[1] || "...";
+
+        if (isFront) {
+          return `<span class="cloze-bracket">[ ${hintText} ]</span>`;
+        } else {
+          return `<span class="cloze-reveal">${answerText}</span>`;
+        }
+      });
+
+      return processed;
     }
 
-    function renderDecksView() {
-      const grid = document.getElementById('decks-grid');
-      grid.innerHTML = '';
+    function calculateNextIntervals(interval, easeFactor) {
+      const again = 0;
+      const hard = interval === 0 ? 1 : Math.max(1, Math.round(interval * 1.2));
+      const good = interval === 0 ? 1 : Math.max(1, Math.round(interval * easeFactor));
+      const easy = interval === 0 ? 4 : Math.max(1, Math.round(interval * easeFactor * 1.3));
 
-      const deckEntries = Object.entries(state.decks);
-      if (deckEntries.length === 0) {
-        grid.innerHTML = `
-          <div class="col-span-full border-2 border-dashed border-gray-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center my-12 bg-gray-900/20">
-            <div class="w-20 h-20 rounded-2xl bg-gray-900 border-2 border-gray-800 flex items-center justify-center text-neonPink text-3xl mb-4">
-              <i class="fa-solid fa-folder-open"></i>
+      const formatIvl = (d) => d === 0 ? "<1d" : `${d}d`;
+      return {
+        again: { days: again, label: "<1d" },
+        hard: { days: hard, label: formatIvl(hard) },
+        good: { days: good, label: formatIvl(good) },
+        easy: { days: easy, label: formatIvl(easy) }
+      };
+    }
+
+    function buildTagTree() {
+      const root = { children: {} };
+
+      state.cards.forEach(card => {
+        if (!card.tags || !Array.isArray(card.tags)) return;
+        card.tags.forEach(fullTag => {
+          const parts = fullTag.split("::").map(p => p.trim()).filter(Boolean);
+          let current = root;
+          let currentPath = "";
+
+          parts.forEach((part) => {
+            currentPath = currentPath ? `${currentPath}::${part}` : part;
+            if (!current.children[part]) {
+              current.children[part] = {
+                name: part,
+                fullPath: currentPath,
+                children: {},
+                count: 0
+              };
+            }
+            current.children[part].count++;
+            current = current.children[part];
+          });
+        });
+      });
+
+      return root.children;
+    }
+
+    function toggleTagExpand(fullPath) {
+      if (state.expandedTags.has(fullPath)) {
+        state.expandedTags.delete(fullPath);
+      } else {
+        state.expandedTags.add(fullPath);
+      }
+      render();
+    }
+
+    function selectTagFilter(fullPath) {
+      state.selectedTagPrefix = (state.selectedTagPrefix === fullPath) ? '' : fullPath;
+      render();
+    }
+
+    async function toggleSuspendByTag(fullPath, suspendState) {
+      const targetCards = state.cards.filter(c => 
+        c.tags && c.tags.some(t => t === fullPath || t.startsWith(fullPath + '::'))
+      );
+      if (targetCards.length === 0) return;
+
+      targetCards.forEach(c => { c.suspended = suspendState; });
+      await dbUpdateCardsBatch(targetCards);
+      await refreshData();
+    }
+
+    async function toggleSelectedCardsSuspension(suspendState) {
+      if (state.selectedCardIds.size === 0) return;
+      const targetCards = state.cards.filter(c => state.selectedCardIds.has(c.id));
+      targetCards.forEach(c => { c.suspended = suspendState; });
+      await dbUpdateCardsBatch(targetCards);
+      state.selectedCardIds.clear();
+      await refreshData();
+    }
+
+    async function toggleSingleCardSuspend(cardId) {
+      const card = state.cards.find(c => c.id === cardId);
+      if (!card) return;
+      card.suspended = !card.suspended;
+      await dbUpdateCard(card);
+      await refreshData();
+    }
+
+    function renderTagTreeNode(node) {
+      const hasChildren = Object.keys(node.children).length > 0;
+      const isExpanded = state.expandedTags.has(node.fullPath);
+      const isSelected = state.selectedTagPrefix === node.fullPath;
+
+      const tagCards = state.cards.filter(c => c.tags && c.tags.some(t => t === node.fullPath || t.startsWith(node.fullPath + '::')));
+      const suspendedCount = tagCards.filter(c => c.suspended).length;
+      const allSuspended = tagCards.length > 0 && suspendedCount === tagCards.length;
+
+      const childNodesHtml = hasChildren && isExpanded ? `
+        <div class="pl-3 border-l-2 border-slate-700/60 ml-2 space-y-1 mt-1">
+          ${Object.values(node.children).map(child => renderTagTreeNode(child)).join('')}
+        </div>
+      ` : '';
+
+      return `
+        <div class="text-sm my-0.5">
+          <div class="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-white/5 transition ${isSelected ? 'bg-sky-500/20 border-2 border-sky-400 text-sky-200 font-bold' : 'text-slate-300'}">
+            <div class="flex items-center space-x-2 flex-1 min-w-0 pr-2">
+              ${hasChildren ? `
+                <button onclick="event.stopPropagation(); toggleTagExpand('${node.fullPath}')" class="w-5 h-5 text-slate-400 hover:text-white flex items-center justify-center font-mono text-[10px] bg-slate-800 rounded">
+                  ${isExpanded ? '▼' : '►'}
+                </button>
+              ` : '<span class="w-5"></span>'}
+              <span onclick="selectTagFilter('${node.fullPath}')" class="truncate cursor-pointer text-base font-semibold hover:underline">
+                🏷️ ${node.name}
+              </span>
             </div>
-            <h3 class="text-2xl font-black text-gray-200 mb-2 font-pop">No Decks Loaded</h3>
-            <p class="text-gray-500 max-w-sm mb-6 text-sm">Upload your Anki package (.apkg file) using the import button in the top right header.</p>
-          </div>
-        `;
-        return;
-      }
+            
+            <div class="flex items-center space-x-2 flex-shrink-0">
+              <button onclick="event.stopPropagation(); toggleSuspendByTag('${node.fullPath}', ${!allSuspended})" 
+                      title="${allSuspended ? 'Unsuspend Tag Cards' : 'Suspend Tag Cards'}"
+                      class="px-2 py-1 text-[11px] font-mono font-bold rounded-lg transition ${allSuspended ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/40' : 'bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-700'}">
+                ${allSuspended ? '⚡ UNSUSPEND' : '⏸️ SUSPEND'}
+              </button>
 
-      deckEntries.forEach(([deckName, count]) => {
-        const cardEl = document.createElement('div');
-        cardEl.className = "pop-card rounded-3xl p-6 flex flex-col justify-between group";
-        cardEl.innerHTML = `
-          <div>
-            <div class="flex items-start justify-between mb-4">
-              <h3 class="text-xl font-bold text-gray-100 group-hover:text-neonCyan transition line-clamp-2 font-pop">${deckName}</h3>
-              <span class="bg-gray-800 text-neonPink text-xs font-black px-3 py-1 rounded-full border border-gray-700">
-                ${count} CARDS
+              <span onclick="selectTagFilter('${node.fullPath}')" class="font-mono text-xs font-black text-slate-400 bg-slate-900 px-2 py-1 rounded-lg border border-white/5 cursor-pointer">
+                ${node.count}
               </span>
             </div>
           </div>
-          <button onclick="startReview('${deckName.replace(/'/g, "\\'")}')" class="w-full mt-6 bg-brand-600 hover:bg-brand-500 text-white font-extrabold py-3.5 rounded-2xl transition flex items-center justify-center gap-2 text-sm pop-btn font-pop">
-            <i class="fa-solid fa-play text-xs"></i> STUDY NOW
-          </button>
-        `;
-        grid.appendChild(cardEl);
-      });
+          ${childNodesHtml}
+        </div>
+      `;
     }
 
-    function startReview(deckName) {
-      state.selectedDeck = deckName;
-      state.reviewQueue = state.cards.filter(c => c.deckName === deckName && !c.suspended);
-      state.currentCardIndex = 0;
-      state.showAnswer = false;
-
-      if (state.reviewQueue.length === 0) {
-        alert("No active non-suspended cards to review in this deck.");
-        return;
-      }
-
-      switchView('review');
-      renderCurrentReviewCard();
-    }
-
-    async function processMediaTags(htmlContent) {
-      if (!htmlContent) return '';
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, 'text/html');
-      
-      const imgs = Array.from(doc.querySelectorAll('img'));
-      for (let img of imgs) {
-        const src = img.getAttribute('src');
-        if (src && !src.startsWith('http') && !src.startsWith('data:')) {
-          if (state.objectUrlCache.has(src)) {
-            img.src = state.objectUrlCache.get(src);
-          } else {
-            const blob = await getMediaFromDB(src);
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              state.objectUrlCache.set(src, url);
-              img.src = url;
-            }
+    function buildCleanDeckTree() {
+      const root = { children: {} };
+      state.decks.forEach(d => {
+        const parts = d.name.split("::").map(p => p.trim()).filter(Boolean);
+        let current = root;
+        parts.forEach((part, idx) => {
+          if (!current.children[part]) {
+            current.children[part] = {
+              displayName: part,
+              fullName: parts.slice(0, idx + 1).join("::"),
+              deckId: idx === parts.length - 1 ? d.id : null,
+              children: {},
+              allDeckIds: new Set()
+            };
           }
+          if (idx === parts.length - 1) current.children[part].deckId = d.id;
+          current = current.children[part];
+        });
+      });
+
+      function populateStats(node) {
+        const childNodes = Object.values(node.children);
+        let directCards = [];
+        let descendantDeckIds = new Set();
+
+        if (node.deckId) {
+          descendantDeckIds.add(node.deckId);
+          directCards = state.cards.filter(c => c.did === node.deckId);
         }
+
+        let allNodeCards = [...directCards];
+        childNodes.forEach(child => {
+          populateStats(child);
+          child.allDeckIds.forEach(id => descendantDeckIds.add(id));
+          allNodeCards = allNodeCards.concat(state.cards.filter(c => child.allDeckIds.has(c.did)));
+        });
+
+        const uniqueCardsMap = new Map();
+        allNodeCards.forEach(c => uniqueCardsMap.set(c.id, c));
+        const uniqueCards = Array.from(uniqueCardsMap.values());
+
+        node.newCount = uniqueCards.filter(c => !c.suspended && c.reps === 0).length;
+        node.learningCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval < 1).length;
+        node.reviewCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval >= 1).length;
+        node.suspendedTotal = uniqueCards.filter(c => c.suspended).length;
+        node.allDeckIds = descendantDeckIds;
       }
 
-      return doc.body.innerHTML;
+      Object.values(root.children).forEach(populateStats);
+      return root.children;
     }
 
-    async function renderCurrentReviewCard() {
-      const card = state.reviewQueue[state.currentCardIndex];
-      if (!card) return;
+    function renderDecksView() {
+      const tree = buildCleanDeckTree();
+      const nodes = Object.values(tree);
 
-      document.getElementById('review-deck-name').innerHTML = `<i class="fa-solid fa-layer-group text-neonPink"></i> ${card.deckName}`;
-      document.getElementById('review-current-num').innerText = state.currentCardIndex + 1;
-      document.getElementById('review-total-num').innerText = state.reviewQueue.length;
+      let decksHtml = nodes.map(node => `
+        <div onclick="startStudy('${node.displayName}', '${Array.from(node.allDeckIds).join(',')}')" class="flex items-center justify-between p-6 my-3 panel-card hover:border-sky-400/50 rounded-3xl cursor-pointer transition-all active:scale-[0.99] group">
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-xl group-hover:scale-110 transition">📦</div>
+            <div>
+              <span class="font-extrabold text-slate-100 text-xl tracking-tight block">${node.displayName}</span>
+              <span class="text-xs font-mono text-slate-400">${node.suspendedTotal > 0 ? `⏸️ ${node.suspendedTotal} suspended cards` : 'Ready to grind'}</span>
+            </div>
+          </div>
 
-      let rawFront = card.front;
-      let rawBack = card.back;
+          <div class="flex items-center space-x-3 font-mono font-bold">
+            <span class="text-sky-400 bg-sky-950/80 border-2 border-sky-500/40 px-4 py-2 rounded-2xl text-sm pop-badge">${node.newCount} NEW</span>
+            <span class="text-rose-400 bg-rose-950/80 border-2 border-rose-500/40 px-4 py-2 rounded-2xl text-sm pop-badge">${node.learningCount} LEARN</span>
+            <span class="text-lime-400 bg-lime-950/80 border-2 border-lime-500/40 px-4 py-2 rounded-2xl text-sm pop-badge">${node.reviewCount} REV</span>
+          </div>
+        </div>
+      `).join('');
 
-      if (card.isCloze) {
-        const targetOrd = card.clozeOrdinal || 1;
-        rawFront = parseCloze(card.front, targetOrd, false);
-        const revealedFront = parseCloze(card.front, targetOrd, true);
-        rawBack = revealedFront + (card.back ? `<hr class="my-6 border-gray-800">${card.back}` : '');
-      }
-
-      const processedFront = await processMediaTags(rawFront);
-      const processedBack = await processMediaTags(rawBack);
-
-      document.getElementById('review-front-content').innerHTML = processedFront;
-      document.getElementById('review-back-content').innerHTML = processedBack;
-
-      document.getElementById('review-back-wrapper').classList.add('hidden');
-      document.getElementById('show-answer-btn').classList.remove('hidden');
-      document.getElementById('rating-buttons').classList.add('hidden');
-
-      // Update Rating Interval Badges
-      document.getElementById('badge-again').innerText = getIntervalBadgeText(card, 1);
-      document.getElementById('badge-hard').innerText = getIntervalBadgeText(card, 2);
-      document.getElementById('badge-good').innerText = getIntervalBadgeText(card, 3);
-      document.getElementById('badge-easy').innerText = getIntervalBadgeText(card, 4);
+      return `
+        <div class="max-w-5xl mx-auto p-6 md:p-10 space-y-8">
+          <div class="border-2 border-dashed border-fuchsia-500/40 bg-fuchsia-950/10 hover:border-fuchsia-400 rounded-3xl p-10 text-center cursor-pointer transition shadow-2xl">
+            <input type="file" accept=".apkg" onchange="handleFileUpload(event)" id="file-input" class="hidden" />
+            <label for="file-input" class="cursor-pointer block space-y-3">
+              <span class="text-5xl block animate-pulse">✨</span>
+              <p class="font-black text-2xl font-display text-slate-100 tracking-wide">DROP YOUR ANKI DECK (.apkg)</p>
+              <p class="text-sm font-semibold text-slate-400">Tap here to select deck files from your device</p>
+            </label>
+          </div>
+          <div class="space-y-3">${decksHtml || `<div class="text-center py-16 text-slate-500 font-extrabold text-xl font-display">NO DECKS FOUND. IMPORT ONE ABOVE!</div>`}</div>
+        </div>
+      `;
     }
 
-    function revealAnswer() {
-      state.showAnswer = true;
-      document.getElementById('review-back-wrapper').classList.remove('hidden');
-      document.getElementById('show-answer-btn').classList.add('hidden');
-      document.getElementById('rating-buttons').classList.remove('hidden');
-      document.getElementById('rating-buttons').classList.add('grid');
+    function startStudy(title, deckIdsStr) {
+      const deckIds = new Set(deckIdsStr.split(','));
+      state.studyTarget = title;
+      state.studyCards = state.cards.filter(c => deckIds.has(c.did) && !c.suspended);
+      state.studyIndex = 0;
+      state.showAnswer = false;
+      state.showExtraInfo = false;
+      state.view = 'study';
+      render();
     }
 
-    function submitRating(rating) {
-      const currentCard = state.reviewQueue[state.currentCardIndex];
-      if (!currentCard) return;
+    async function processRating(rating) {
+      const currentCard = state.studyCards[state.studyIndex];
+      const ivls = calculateNextIntervals(currentCard.interval || 0, currentCard.easeFactor || 2.5);
 
-      const updatedCard = calculateSM2(currentCard, rating);
-      state.cards = state.cards.map(c => c.id === updatedCard.id ? updatedCard : c);
+      let newInterval = currentCard.interval || 0;
+      let newEase = currentCard.easeFactor || 2.5;
 
-      if (rating === 1) {
-        state.reviewQueue.push(updatedCard);
-      }
+      if (rating === 1) { newInterval = ivls.again.days; newEase = Math.max(1.3, newEase - 0.2); }
+      else if (rating === 2) { newInterval = ivls.hard.days; }
+      else if (rating === 3) { newInterval = ivls.good.days; }
+      else if (rating === 4) { newInterval = ivls.easy.days; newEase += 0.15; }
 
-      if (state.currentCardIndex + 1 < state.reviewQueue.length) {
-        state.currentCardIndex++;
-        state.showAnswer = false;
-        renderCurrentReviewCard();
+      await dbUpdateCard({
+        ...currentCard,
+        reps: (currentCard.reps || 0) + 1,
+        interval: newInterval,
+        easeFactor: newEase,
+        dueDate: Date.now() + newInterval * 86400000
+      });
+
+      state.showAnswer = false;
+      state.showExtraInfo = false;
+      if (state.studyIndex < state.studyCards.length - 1) {
+        state.studyIndex++;
+        render();
       } else {
-        alert("Deck review completed!");
+        await refreshData();
         switchView('decks');
       }
     }
 
-    function buildTagTreeData() {
-      const tree = {};
-      state.cards.forEach(card => {
-        card.tags.forEach(tag => {
-          const parts = tag.split('::');
-          let current = tree;
-          parts.forEach((part, idx) => {
-            if (!current[part]) {
-              current[part] = { _fullTag: parts.slice(0, idx + 1).join('::'), _children: {} };
-            }
-            current = current[part]._children;
-          });
-        });
-      });
-      return tree;
-    }
+    function renderStudyView() {
+      const currentCard = state.studyCards[state.studyIndex];
 
-    function renderTagTree() {
-      const container = document.getElementById('tag-tree-container');
-      container.innerHTML = '';
-
-      const tree = buildTagTreeData();
-      if (Object.keys(tree).length === 0) {
-        container.innerHTML = `<div class="text-xs text-gray-500 italic p-3">No tags found in deck</div>`;
-        return;
-      }
-
-      function appendNode(parentEl, name, node, depth = 0) {
-        const tagCards = state.cards.filter(c => c.tags.some(t => t.startsWith(node._fullTag)));
-        const suspendedCount = tagCards.filter(c => c.suspended).length;
-        const allSuspended = tagCards.length > 0 && suspendedCount === tagCards.length;
-
-        const wrapper = document.createElement('div');
-        wrapper.style.paddingLeft = `${depth * 10}px`;
-        wrapper.className = "my-1";
-
-        const isSelected = state.selectedTag === node._fullTag;
-
-        wrapper.innerHTML = `
-          <div class="group flex items-center justify-between p-2 rounded-xl cursor-pointer text-sm font-semibold transition ${
-            isSelected ? 'bg-gradient-to-r from-brand-600 to-neonPink text-white shadow-lg' : 'hover:bg-gray-800/80 text-gray-300'
-          }">
-            <div class="flex items-center gap-2 min-w-0 flex-1" onclick="filterByTag('${node._fullTag}')">
-              <i class="fa-solid fa-hashtag text-xs text-neonCyan"></i>
-              <span class="truncate">${name}</span>
-            </div>
-            <div class="flex items-center gap-1 ml-2 flex-shrink-0">
-              <span class="text-xs bg-gray-950/60 px-2 py-0.5 rounded-md text-gray-400 border border-gray-800 font-bold">${tagCards.length}</span>
-              <button onclick="toggleTagSuspend('${node._fullTag}', ${!allSuspended})" class="p-1.5 rounded-lg hover:bg-gray-700 transition text-xs ${allSuspended ? 'text-amber-400 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100'}" title="${allSuspended ? 'Unsuspend tag cards' : 'Suspend tag cards'}">
-                <i class="fa-solid ${allSuspended ? 'fa-pause' : 'fa-play'}"></i>
-              </button>
-            </div>
+      if (!currentCard) {
+        return `
+          <div class="flex flex-col items-center justify-center h-full p-8 text-center space-y-6">
+            <span class="text-7xl animate-bounce">🔥</span>
+            <h2 class="text-4xl font-black font-display text-sky-400">DECK CLEARED! YOU'RE UNSTOPPABLE</h2>
+            <button onclick="switchView('decks')" class="px-8 py-4 bg-sky-500 text-slate-950 rounded-2xl text-xl font-black font-display shadow-2xl active:scale-95 transition">
+              BACK TO DECKS
+            </button>
           </div>
         `;
-
-        parentEl.appendChild(wrapper);
-
-        const children = Object.entries(node._children);
-        if (children.length > 0) {
-          children.forEach(([childName, childNode]) => {
-            appendNode(parentEl, childName, childNode, depth + 1);
-          });
-        }
       }
 
-      Object.entries(tree).forEach(([tagName, node]) => {
-        appendNode(container, tagName, node, 0);
-      });
+      const ivls = calculateNextIntervals(currentCard.interval || 0, currentCard.easeFactor || 2.5);
+      const extraFields = (currentCard.fields || []).slice(2).filter(f => f && f.trim() !== "");
+
+      return `
+        <div class="max-w-5xl mx-auto h-full flex flex-col p-6 md:p-8 justify-between">
+          <div class="flex items-center justify-between text-base font-extrabold text-slate-400 mb-4 font-mono">
+            <button onclick="switchView('decks')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-black text-slate-200">← EXIT</button>
+            <span class="text-sky-400 bg-sky-950/60 border border-sky-500/30 px-4 py-1.5 rounded-full">${state.studyTarget} (${state.studyIndex + 1} / ${state.studyCards.length})</span>
+          </div>
+
+          <div onclick="if (!state.showAnswer) { state.showAnswer = true; render(); }" class="flex-1 panel-card rounded-3xl p-8 md:p-12 flex flex-col justify-between overflow-y-auto mb-6 shadow-2xl border-2 border-white/10 cursor-pointer">
+            <div class="space-y-8">
+              <!-- Front Field -->
+              <div class="card-content text-slate-100 text-2xl md:text-3xl leading-relaxed font-bold text-center">
+                ${renderCardField(currentCard.fields?.[0], true, currentCard.ord)}
+              </div>
+
+              <!-- Answer Field -->
+              ${state.showAnswer ? `
+                <hr class="w-full border-white/15 my-6" />
+                <div class="card-content text-slate-200 text-xl md:text-2xl leading-relaxed font-semibold text-center">
+                  ${renderCardField(currentCard.fields?.[1] || currentCard.fields?.[0], false, currentCard.ord)}
+                </div>
+              ` : ''}
+
+              <!-- Additional Info Panel -->
+              ${state.showAnswer && extraFields.length > 0 ? `
+                <div class="mt-8 pt-6 border-t border-white/10">
+                  <button onclick="event.stopPropagation(); state.showExtraInfo = !state.showExtraInfo; render();" class="w-full py-3 px-5 bg-white/5 hover:bg-white/10 text-sky-400 rounded-2xl text-sm font-extrabold flex items-center justify-between transition border border-white/10">
+                    <span class="font-display tracking-wider">💡 EXTRA INSIGHTS (${extraFields.length})</span>
+                    <span>${state.showExtraInfo ? '▲ HIDE' : '▼ VIEW'}</span>
+                  </button>
+                  ${state.showExtraInfo ? `
+                    <div class="mt-4 p-6 bg-slate-950/90 rounded-2xl border border-white/10 space-y-6 text-base text-slate-300 card-content">
+                      ${extraFields.map((fieldHtml, idx) => `
+                        <div>
+                          <span class="text-xs font-mono uppercase tracking-widest text-fuchsia-400 block mb-2 font-bold">FIELD ${idx + 1}</span>${renderCardField(fieldHtml, false, currentCard.ord)}
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Tags Section -->
+            <div class="mt-8 pt-4 border-t border-white/10 flex flex-wrap gap-2 justify-center items-center">
+              ${(currentCard.tags && currentCard.tags.length > 0) ? 
+                currentCard.tags.map(tag => {
+                  const leafName = tag.split("::").pop();
+                  return `<span title="${tag}" class="text-xs font-mono bg-sky-950/90 border border-sky-400/40 text-sky-300 px-3.5 py-1.5 rounded-xl font-bold">#${leafName}</span>`;
+                }).join('') : '<span class="text-xs text-slate-500 font-mono">No tags</span>'}
+            </div>
+          </div>
+
+          <div class="pb-2">
+            ${!state.showAnswer ? `
+              <button onclick="state.showAnswer = true; render();" class="w-full py-6 bg-sky-500 hover:bg-sky-400 active:scale-[0.98] text-slate-950 font-black font-display text-2xl rounded-3xl shadow-[0_0_30px_rgba(56,189,248,0.4)] transition">
+                SHOW ANSWER
+              </button>
+            ` : `
+              <div class="grid grid-cols-4 gap-4">
+                <button onclick="processRating(1)" class="py-5 bg-rose-950/90 hover:bg-rose-900 border-2 border-rose-500/60 text-rose-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.again.label}</span>
+                  <span class="text-xl font-black font-display">AGAIN</span>
+                </button>
+                <button onclick="processRating(2)" class="py-5 bg-amber-950/90 hover:bg-amber-900 border-2 border-amber-500/60 text-amber-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.hard.label}</span>
+                  <span class="text-xl font-black font-display">HARD</span>
+                </button>
+                <button onclick="processRating(3)" class="py-5 bg-lime-950/90 hover:bg-lime-900 border-2 border-lime-500/60 text-lime-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.good.label}</span>
+                  <span class="text-xl font-black font-display">GOOD</span>
+                </button>
+                <button onclick="processRating(4)" class="py-5 bg-sky-950/90 hover:bg-sky-900 border-2 border-sky-500/60 text-sky-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.easy.label}</span>
+                  <span class="text-xl font-black font-display">EASY</span>
+                </button>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
     }
 
-    function filterByTag(tag) {
-      state.selectedTag = tag;
-      const indicator = document.getElementById('active-tag-indicator');
-      const clearBtn = document.getElementById('clear-tag-btn');
-
-      if (tag) {
-        indicator.classList.remove('hidden');
-        clearBtn.classList.remove('hidden');
-        document.getElementById('active-tag-text').innerText = `Tag: ${tag}`;
+    function toggleSelectAllCards(filteredCards, checked) {
+      if (checked) {
+        filteredCards.forEach(c => state.selectedCardIds.add(c.id));
       } else {
-        indicator.classList.add('hidden');
-        clearBtn.classList.add('hidden');
+        state.selectedCardIds.clear();
       }
-
-      renderTagTree();
-      renderBrowserTable();
+      render();
     }
 
-    function toggleTagSuspend(tagPrefix, suspend) {
-      state.cards = state.cards.map(c => {
-        if (c.tags.some(t => t.startsWith(tagPrefix))) {
-          return { ...c, suspended: suspend };
-        }
-        return c;
-      });
-      renderTagTree();
-      renderBrowserTable();
-    }
-
-    function renderBrowserTable() {
-      const tbody = document.getElementById('browser-table-body');
-      tbody.innerHTML = '';
-
-      const query = document.getElementById('browser-search-input').value.toLowerCase();
-
-      const filtered = state.cards.filter(card => {
-        const matchesSearch = !query || 
-          card.front.toLowerCase().includes(query) || 
-          card.back.toLowerCase().includes(query);
-        const matchesTag = !state.selectedTag || card.tags.some(t => t.startsWith(state.selectedTag));
-        return matchesSearch && matchesTag;
-      });
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colSpan="4" class="p-8 text-center text-gray-500 text-sm">No matching cards found.</td>
-          </tr>
-        `;
-        return;
+    function toggleSelectCard(cardId) {
+      if (state.selectedCardIds.has(cardId)) {
+        state.selectedCardIds.delete(cardId);
+      } else {
+        state.selectedCardIds.add(cardId);
       }
+      render();
+    }
 
-      filtered.forEach(card => {
-        const tr = document.createElement('tr');
-        tr.className = `hover:bg-gray-800/40 transition ${card.suspended ? 'opacity-50 bg-gray-950/50' : ''}`;
-        
-        const tagsHtml = card.tags.map(t => `<span class="bg-gray-800 text-gray-300 text-xs px-2.5 py-0.5 rounded-lg border border-gray-700/60 font-semibold">${t}</span>`).join(' ');
+    function startResizing(e) {
+      state.isResizing = true;
+      document.body.style.cursor = 'col-resize';
+      document.addEventListener('mousemove', handleResizing);
+      document.addEventListener('mouseup', stopResizing);
+      document.addEventListener('touchmove', handleResizingTouch);
+      document.addEventListener('touchend', stopResizing);
+    }
 
-        tr.innerHTML = `
-          <td class="p-4 max-w-md truncate font-medium text-gray-200">${stripHTML(card.front)}</td>
-          <td class="p-4 text-gray-400 whitespace-nowrap font-medium">${card.deckName}</td>
-          <td class="p-4"><div class="flex flex-wrap gap-1">${tagsHtml}</div></td>
-          <td class="p-4 text-center">
-            <button onclick="toggleCardSuspend('${card.id}')" class="px-3 py-1 rounded-xl text-xs font-black transition ${
-              card.suspended ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-            }">
-              ${card.suspended ? 'SUSPENDED' : 'ACTIVE'}
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+    function handleResizing(e) {
+      if (!state.isResizing) return;
+      const newWidth = Math.max(180, Math.min(600, e.clientX - 24));
+      state.sidebarWidth = newWidth;
+      const sidebar = document.getElementById('tag-sidebar');
+      if (sidebar) sidebar.style.width = `${newWidth}px`;
+    }
+
+    function handleResizingTouch(e) {
+      if (!state.isResizing || !e.touches[0]) return;
+      const newWidth = Math.max(180, Math.min(600, e.touches[0].clientX - 24));
+      state.sidebarWidth = newWidth;
+      const sidebar = document.getElementById('tag-sidebar');
+      if (sidebar) sidebar.style.width = `${newWidth}px`;
+    }
+
+    function stopResizing() {
+      state.isResizing = false;
+      document.body.style.cursor = 'default';
+      document.removeEventListener('mousemove', handleResizing);
+      document.removeEventListener('mouseup', stopResizing);
+      document.removeEventListener('touchmove', handleResizingTouch);
+      document.removeEventListener('touchend', stopResizing);
+    }
+
+    function renderBrowserView() {
+      const q = state.searchQuery.toLowerCase().trim();
+      const tagTree = buildTagTree();
+
+      const filtered = state.cards.filter(c => {
+        const matchesQuery = !q || (c.fields?.[0] || "").toLowerCase().includes(q) || (c.fields?.[1] || "").toLowerCase().includes(q);
+        const matchesTag = !state.selectedTagPrefix || (c.tags && c.tags.some(t => t === state.selectedTagPrefix || t.startsWith(state.selectedTagPrefix + '::')));
+        return matchesQuery && matchesTag;
       });
+
+      const allSelected = filtered.length > 0 && filtered.every(c => state.selectedCardIds.has(c.id));
+
+      return `
+        <div class="flex h-full max-w-7xl mx-auto p-6 gap-0 overflow-hidden relative">
+          <!-- Draggable Tag Hierarchy Sidebar -->
+          <div id="tag-sidebar" style="width: ${state.sidebarWidth}px;" class="bg-slate-900/90 border-2 border-white/10 rounded-3xl p-4 flex flex-col h-full flex-shrink-0 shadow-2xl z-10">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b-2 border-white/10">
+              <span class="text-xs font-black uppercase tracking-widest text-fuchsia-400 font-mono">🏷️ TAG HIERARCHY</span>
+              ${state.selectedTagPrefix ? `
+                <button onclick="state.selectedTagPrefix = ''; render();" class="text-xs text-rose-400 font-bold hover:underline">RESET</button>
+              ` : ''}
+            </div>
+            
+            <div class="flex-1 overflow-y-auto space-y-1 pr-1">
+              ${Object.keys(tagTree).length > 0 ? 
+                Object.values(tagTree).map(node => renderTagTreeNode(node)).join('') : 
+                '<div class="text-sm text-slate-500 p-4 font-bold">No tags indexed</div>'}
+            </div>
+          </div>
+
+          <!-- Resizer Handle -->
+          <div onmousedown="startResizing(event)" ontouchstart="startResizing(event)" class="resizer-handle h-full flex items-center justify-center mx-1 rounded-full">
+            <div class="w-1 h-8 bg-white/30 rounded-full"></div>
+          </div>
+
+          <!-- Main Table Area -->
+          <div class="flex-1 flex flex-col h-full gap-4 min-w-0">
+            <div class="bg-slate-900/90 p-4 rounded-3xl border-2 border-white/10 flex flex-wrap items-center justify-between gap-4 shadow-2xl">
+              <input type="text" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" placeholder="Search cards..." class="flex-1 min-w-[200px] bg-slate-950 border-2 border-white/15 rounded-2xl px-5 py-3 text-base text-slate-100 font-semibold placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+              
+              ${state.selectedCardIds.size > 0 ? `
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-mono font-bold text-sky-400 bg-sky-950 px-3 py-2 rounded-xl border border-sky-500/30">${state.selectedCardIds.size} SELECTED</span>
+                  <button onclick="toggleSelectedCardsSuspension(true)" class="px-3 py-2 bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/40 rounded-xl text-xs font-black font-display">SUSPEND</button>
+                  <button onclick="toggleSelectedCardsSuspension(false)" class="px-3 py-2 bg-lime-500/20 text-lime-300 border border-lime-500/40 hover:bg-lime-500/40 rounded-xl text-xs font-black font-display">UNSUSPEND</button>
+                </div>
+              ` : ''}
+
+              ${state.selectedTagPrefix ? `
+                <div class="text-xs font-mono bg-sky-950 border border-sky-400 text-sky-300 px-3 py-2 rounded-xl flex items-center gap-2">
+                  <span>#${state.selectedTagPrefix}</span>
+                  <button onclick="state.selectedTagPrefix = ''; render();" class="hover:text-white font-bold">✕</button>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="bg-slate-900/90 border-2 border-white/10 rounded-3xl overflow-y-auto flex-1 shadow-2xl">
+              <table class="w-full text-left text-base border-collapse">
+                <thead class="bg-slate-950 text-slate-400 sticky top-0 border-b-2 border-white/10 font-mono text-xs uppercase font-extrabold z-10">
+                  <tr>
+                    <th class="p-4 w-12 text-center">
+                      <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleSelectAllCards(filtered, this.checked)" class="w-5 h-5 rounded border-white/20 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer" />
+                    </th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4">Front</th>
+                    <th class="p-4">Back</th>
+                    <th class="p-4">Tags</th>
+                    <th class="p-4">Interval</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5 font-medium">
+                  ${filtered.slice(0, 100).map(c => {
+                    const isSelected = state.selectedCardIds.has(c.id);
+                    return `
+                      <tr class="hover:bg-white/[0.04] transition ${c.suspended ? 'bg-amber-950/20 text-amber-200/70' : ''} ${isSelected ? 'bg-sky-950/40' : ''}">
+                        <td class="p-4 text-center">
+                          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelectCard('${c.id}')" class="w-5 h-5 rounded border-white/20 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer" />
+                        </td>
+                        <td class="p-4">
+                          <button onclick="toggleSingleCardSuspend('${c.id}')" class="px-2.5 py-1 text-xs font-mono font-bold rounded-lg ${c.suspended ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-lime-500/20 text-lime-300 border border-lime-500/40'}">
+                            ${c.suspended ? '⏸️ SUSPENDED' : '✅ ACTIVE'}
+                          </button>
+                        </td>
+                        <td class="p-4 max-w-[220px] truncate font-bold text-slate-100">${c.fields?.[0] || ""}</td>
+                        <td class="p-4 max-w-[220px] truncate text-slate-300">${c.fields?.[1] || ""}</td>
+                        <td class="p-4 max-w-[180px] truncate">
+                          ${(c.tags && c.tags.length > 0) ? c.tags.map(t => {
+                            const leaf = t.split("::").pop();
+                            return `<span title="${t}" class="inline-block text-[11px] font-mono bg-sky-950 border border-sky-400/30 text-sky-300 px-2 py-0.5 rounded-lg mr-1 font-bold">#${leaf}</span>`;
+                          }).join('') : '<span class="text-slate-600">-</span>'}
+                        </td>
+                        <td class="p-4 font-mono text-xs font-bold">${c.interval || 0}d</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    function toggleCardSuspend(cardId) {
-      state.cards = state.cards.map(c => c.id === cardId ? { ...c, suspended: !c.suspended } : c);
-      renderBrowserTable();
-      renderTagTree();
+    function render() {
+      const root = document.getElementById('app-root');
+      if (state.view === 'decks') root.innerHTML = renderDecksView();
+      else if (state.view === 'study') root.innerHTML = renderStudyView();
+      else if (state.view === 'browser') root.innerHTML = renderBrowserView();
     }
 
-    function showLoading(msg) {
-      document.getElementById('loading-msg').innerText = msg;
-      document.getElementById('loading-overlay').classList.remove('hidden');
-    }
-
-    function hideLoading() {
-      document.getElementById('loading-overlay').classList.add('hidden');
-    }
-
-    window.onload = function() {
-      renderDecksView();
-    };
+    refreshData();
   </script>
 </body>
 </html>
