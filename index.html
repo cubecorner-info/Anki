@@ -5,18 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#090d16" />
-  <title>AnkiFlow Tablet Edition</title>
+  <meta name="theme-color" content="#070a12" />
+  <title>AnkiFlow • Modern Edition</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
-            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
-            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
+            display: ['"Outfit"', 'sans-serif'],
+            mono: ['"Space Grotesk"', 'monospace'],
+          },
+          colors: {
+            vibes: {
+              black: '#070a12',
+              card: '#0f172a',
+              neonSky: '#38bdf8',
+              neonPink: '#f43f5e',
+              neonLime: '#a3e635',
+              neonPurple: '#a855f7',
+              graffitiYellow: '#facc15'
+            }
           }
         }
       }
@@ -28,9 +44,9 @@
 
   <style>
     body {
-      background-color: #0b0f19;
+      background: radial-gradient(circle at 50% -20%, #1e1b4b 0%, #070a12 80%);
       color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
@@ -39,49 +55,89 @@
       overflow: hidden;
       touch-action: manipulation;
     }
+
+    .graffiti-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      background: linear-gradient(135deg, #38bdf8 0%, #a855f7 50%, #f43f5e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(168, 85, 247, 0.35);
+    }
+
     .panel-card {
       background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(16px);
+      backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
     }
+
+    .pop-badge {
+      box-shadow: 3px 3px 0px rgba(0,0,0,0.8);
+    }
+
     .cloze-bracket {
       color: #38bdf8;
-      font-weight: 700;
-      background: rgba(56, 189, 248, 0.18);
-      border: 1px dashed rgba(56, 189, 248, 0.5);
-      padding: 4px 12px;
-      border-radius: 8px;
-    }
-    .cloze-reveal {
-      color: #34d399;
-      font-weight: 700;
-      background: rgba(52, 211, 153, 0.2);
-      border: 1px solid rgba(52, 211, 153, 0.5);
-      padding: 4px 12px;
-      border-radius: 8px;
+      font-weight: 800;
+      background: rgba(56, 189, 248, 0.2);
+      border: 2px dashed #38bdf8;
+      padding: 4px 14px;
+      border-radius: 12px;
+      font-size: 1.1em;
       display: inline-block;
     }
+
+    .cloze-reveal {
+      color: #a3e635;
+      font-weight: 800;
+      background: rgba(163, 230, 53, 0.2);
+      border: 2px solid #a3e635;
+      padding: 4px 14px;
+      border-radius: 12px;
+      display: inline-block;
+      font-size: 1.1em;
+    }
+
     .card-content img {
       max-width: 100%;
-      max-height: 50vh;
+      max-height: 48vh;
       object-fit: contain;
-      border-radius: 0.85rem;
+      border-radius: 1.25rem;
       margin: 1.25rem auto;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       display: block;
+    }
+
+    /* Custom touch-friendly scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
     }
   </style>
 </head>
-<body class="h-screen w-screen flex flex-col relative text-base select-none">
+<body class="h-screen w-screen flex flex-col relative text-slate-100 select-none">
 
-  <header class="px-6 py-4 bg-slate-950/90 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+  <!-- Header -->
+  <header class="px-8 py-5 bg-slate-950/90 border-b border-white/10 flex items-center justify-between flex-shrink-0 z-20">
     <div class="flex items-center space-x-3">
-      <span class="text-2xl">⚡</span>
-      <h1 class="text-lg font-bold text-slate-100">AnkiFlow</h1>
+      <span class="text-3xl animate-bounce">⚡</span>
+      <h1 class="text-2xl graffiti-title tracking-tight">AnkiFlow</h1>
+      <span class="text-[10px] font-mono tracking-widest bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 px-2.5 py-1 rounded-full font-bold uppercase">Pro Tablet</span>
     </div>
-    <div class="flex gap-2">
-      <button id="nav-decks" onclick="switchView('decks')" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-lg active:scale-95 transition">Decks</button>
-      <button id="nav-browser" onclick="switchView('browser')" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition">Browser</button>
+    <div class="flex gap-3">
+      <button id="nav-decks" onclick="switchView('decks')" class="px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-sky-500 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.4)] active:scale-95 transition">DECKS</button>
+      <button id="nav-browser" onclick="switchView('browser')" class="px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition">BROWSER</button>
     </div>
   </header>
 
@@ -161,6 +217,17 @@
       });
     }
 
+    async function dbUpdateCardsBatch(cards) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("cards", "readwrite");
+        const store = tx.objectStore("cards");
+        cards.forEach(c => store.put(c));
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
     let state = {
       view: 'decks',
       decks: [],
@@ -173,7 +240,8 @@
       showExtraInfo: false,
       searchQuery: '',
       selectedTagPrefix: '',
-      expandedTags: new Set()
+      expandedTags: new Set(),
+      selectedCardIds: new Set()
     };
 
     async function refreshData() {
@@ -185,8 +253,12 @@
 
     function switchView(viewName) {
       state.view = viewName;
-      document.getElementById('nav-decks').className = viewName === 'decks' ? "px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-lg active:scale-95 transition" : "px-5 py-2.5 rounded-xl text-xs font-bold bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition";
-      document.getElementById('nav-browser').className = viewName === 'browser' ? "px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 text-white shadow-lg active:scale-95 transition" : "px-5 py-2.5 rounded-xl text-xs font-bold bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition";
+      document.getElementById('nav-decks').className = viewName === 'decks' 
+        ? "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-sky-500 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.4)] active:scale-95 transition" 
+        : "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition";
+      document.getElementById('nav-browser').className = viewName === 'browser' 
+        ? "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-sky-500 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.4)] active:scale-95 transition" 
+        : "px-6 py-3 rounded-2xl text-sm font-black font-display tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 active:scale-95 transition";
       render();
     }
 
@@ -196,9 +268,9 @@
 
       const root = document.getElementById('app-root');
       root.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full p-8 space-y-4">
-          <div class="w-12 h-12 rounded-full border-4 border-slate-700 border-t-sky-400 animate-spin"></div>
-          <p class="text-slate-300 font-mono text-sm">Parsing package & extracting media...</p>
+        <div class="flex flex-col items-center justify-center h-full p-8 space-y-6">
+          <div class="w-16 h-16 rounded-full border-4 border-fuchsia-500 border-t-amber-400 animate-spin"></div>
+          <p class="text-xl font-bold font-display text-sky-400">LOADING YOUR DECK DECK BUNDLE...</p>
         </div>`;
 
       try {
@@ -300,7 +372,7 @@
       if (isFront) {
         processed = processed.replace(clozeRegex, (match, num, text, hint) => {
           if (parseInt(num) === targetOrd) {
-            return `<span class="cloze-bracket">[${hint || "..."}]</span>`;
+            return `<span class="cloze-bracket">[ ${hint || "..."} ]</span>`;
           }
           return text;
         });
@@ -331,7 +403,7 @@
       };
     }
 
-    // Build Tag Tree Structure from :: Delimited Tags
+    // Build Tag Tree Structure
     function buildTagTree() {
       const root = { children: {}, count: 0 };
 
@@ -379,33 +451,76 @@
       render();
     }
 
+    // Anki-Like Action: Suspend / Unsuspend Cards matching tag (and sub-tags)
+    async function toggleSuspendByTag(fullPath, suspendState) {
+      const targetCards = state.cards.filter(c => 
+        c.tags && c.tags.some(t => t === fullPath || t.startsWith(fullPath + '::'))
+      );
+      if (targetCards.length === 0) return;
+
+      targetCards.forEach(c => { c.suspended = suspendState; });
+      await dbUpdateCardsBatch(targetCards);
+      await refreshData();
+    }
+
+    async function toggleSelectedCardsSuspension(suspendState) {
+      if (state.selectedCardIds.size === 0) return;
+      const targetCards = state.cards.filter(c => state.selectedCardIds.has(c.id));
+      targetCards.forEach(c => { c.suspended = suspendState; });
+      await dbUpdateCardsBatch(targetCards);
+      state.selectedCardIds.clear();
+      await refreshData();
+    }
+
+    async function toggleSingleCardSuspend(cardId) {
+      const card = state.cards.find(c => c.id === cardId);
+      if (!card) return;
+      card.suspended = !card.suspended;
+      await dbUpdateCard(card);
+      await refreshData();
+    }
+
     function renderTagTreeNode(node) {
       const hasChildren = Object.keys(node.children).length > 0;
       const isExpanded = state.expandedTags.has(node.fullPath);
       const isSelected = state.selectedTagPrefix === node.fullPath;
 
+      const tagCards = state.cards.filter(c => c.tags && c.tags.some(t => t === node.fullPath || t.startsWith(node.fullPath + '::')));
+      const suspendedCount = tagCards.filter(c => c.suspended).length;
+      const allSuspended = tagCards.length > 0 && suspendedCount === tagCards.length;
+
       const childNodesHtml = hasChildren && isExpanded ? `
-        <div class="pl-4 border-l border-white/10 ml-2 space-y-1 mt-1">
+        <div class="pl-4 border-l-2 border-slate-700 ml-2 space-y-1 mt-1">
           ${Object.values(node.children).map(child => renderTagTreeNode(child)).join('')}
         </div>
       ` : '';
 
       return `
-        <div class="text-xs">
-          <div class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/5 transition group ${isSelected ? 'bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold' : 'text-slate-300'}">
-            <div class="flex items-center space-x-1.5 flex-1 min-w-0">
+        <div class="text-sm my-0.5">
+          <div class="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-white/5 transition group ${isSelected ? 'bg-sky-500/20 border-2 border-sky-400 text-sky-200 font-bold' : 'text-slate-300'}">
+            <div class="flex items-center space-x-2 flex-1 min-w-0">
               ${hasChildren ? `
-                <button onclick="event.stopPropagation(); toggleTagExpand('${node.fullPath}')" class="w-4 h-4 text-slate-400 hover:text-white flex items-center justify-center font-mono text-[10px]">
+                <button onclick="event.stopPropagation(); toggleTagExpand('${node.fullPath}')" class="w-6 h-6 text-slate-400 hover:text-white flex items-center justify-center font-mono text-xs bg-slate-800 rounded-lg">
                   ${isExpanded ? '▼' : '►'}
                 </button>
-              ` : '<span class="w-4"></span>'}
-              <span onclick="selectTagFilter('${node.fullPath}')" class="truncate cursor-pointer hover:underline">
-                ${node.name}
+              ` : '<span class="w-6"></span>'}
+              <span onclick="selectTagFilter('${node.fullPath}')" class="truncate cursor-pointer text-base font-semibold hover:underline">
+                🏷️ ${node.name}
               </span>
             </div>
-            <span onclick="selectTagFilter('${node.fullPath}')" class="font-mono text-[10px] text-slate-500 bg-white/5 px-1.5 py-0.5 rounded cursor-pointer">
-              ${node.count}
-            </span>
+            
+            <div class="flex items-center space-x-2">
+              <!-- Anki-style Suspend Button per Tag level -->
+              <button onclick="event.stopPropagation(); toggleSuspendByTag('${node.fullPath}', ${!allSuspended})" 
+                      title="${allSuspended ? 'Unsuspend Tag Cards' : 'Suspend Tag Cards'}"
+                      class="px-2 py-1 text-[11px] font-mono font-bold rounded-lg transition ${allSuspended ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/40' : 'bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-700'}">
+                ${allSuspended ? '⚡ UNSUSPEND' : '⏸️ SUSPEND'}
+              </button>
+
+              <span onclick="selectTagFilter('${node.fullPath}')" class="font-mono text-xs font-black text-slate-400 bg-slate-900 px-2 py-1 rounded-lg border border-white/5 cursor-pointer">
+                ${node.count}
+              </span>
+            </div>
           </div>
           ${childNodesHtml}
         </div>
@@ -456,6 +571,7 @@
         node.newCount = uniqueCards.filter(c => !c.suspended && c.reps === 0).length;
         node.learningCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval < 1).length;
         node.reviewCount = uniqueCards.filter(c => !c.suspended && c.reps > 0 && c.interval >= 1).length;
+        node.suspendedTotal = uniqueCards.filter(c => c.suspended).length;
         node.allDeckIds = descendantDeckIds;
       }
 
@@ -468,27 +584,34 @@
       const nodes = Object.values(tree);
 
       let decksHtml = nodes.map(node => `
-        <div onclick="startStudy('${node.displayName}', '${Array.from(node.allDeckIds).join(',')}')" class="flex items-center justify-between p-5 my-2 panel-card hover:border-slate-500 rounded-2xl cursor-pointer transition active:scale-[0.99]">
-          <span class="font-semibold text-slate-100 text-lg truncate">${node.displayName}</span>
-          <div class="flex items-center space-x-2 text-xs font-mono font-bold">
-            <span class="text-sky-400 bg-sky-950/60 border border-sky-500/30 px-3 py-1.5 rounded-xl">${node.newCount}</span>
-            <span class="text-rose-400 bg-rose-950/60 border border-rose-500/30 px-3 py-1.5 rounded-xl">${node.learningCount}</span>
-            <span class="text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1.5 rounded-xl">${node.reviewCount}</span>
+        <div onclick="startStudy('${node.displayName}', '${Array.from(node.allDeckIds).join(',')}')" class="flex items-center justify-between p-6 my-3 panel-card hover:border-sky-400/50 rounded-3xl cursor-pointer transition-all active:scale-[0.99] group">
+          <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-xl group-hover:scale-110 transition">📦</div>
+            <div>
+              <span class="font-extrabold text-slate-100 text-xl tracking-tight block">${node.displayName}</span>
+              <span class="text-xs font-mono text-slate-400">${node.suspendedTotal > 0 ? `⏸️ ${node.suspendedTotal} suspended cards` : 'Ready to grind'}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-3 font-mono font-bold">
+            <span class="text-sky-400 bg-sky-950/80 border-2 border-sky-500/40 px-4 py-2 rounded-2xl text-sm pop-badge">${node.newCount} NEW</span>
+            <span class="text-rose-400 bg-rose-950/80 border-2 border-rose-500/40 px-4 py-2 rounded-2xl text-sm pop-badge">${node.learningCount} LEARN</span>
+            <span class="text-lime-400 bg-lime-950/80 border-2 border-lime-500/40 px-4 py-2 rounded-2xl text-sm pop-badge">${node.reviewCount} REV</span>
           </div>
         </div>
       `).join('');
 
       return `
-        <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-          <div class="border border-dashed border-white/20 bg-white/[0.02] hover:border-sky-500/50 rounded-2xl p-8 text-center cursor-pointer">
+        <div class="max-w-5xl mx-auto p-6 md:p-10 space-y-8">
+          <div class="border-2 border-dashed border-fuchsia-500/40 bg-fuchsia-950/10 hover:border-fuchsia-400 rounded-3xl p-10 text-center cursor-pointer transition shadow-2xl">
             <input type="file" accept=".apkg" onchange="handleFileUpload(event)" id="file-input" class="hidden" />
-            <label for="file-input" class="cursor-pointer block space-y-2">
-              <span class="text-4xl block">📥</span>
-              <p class="font-bold text-base text-slate-100">Import Anki Deck (.apkg)</p>
-              <p class="text-xs text-slate-400">Tap here to choose a file from your iPad or PC</p>
+            <label for="file-input" class="cursor-pointer block space-y-3">
+              <span class="text-5xl block animate-pulse">✨</span>
+              <p class="font-black text-2xl font-display text-slate-100 tracking-wide">DROP YOUR ANKI DECK (.apkg)</p>
+              <p class="text-sm font-semibold text-slate-400">Tap here to select deck files from your device</p>
             </label>
           </div>
-          <div class="space-y-2">${decksHtml || `<div class="text-center py-10 text-slate-500">No decks imported yet.</div>`}</div>
+          <div class="space-y-3">${decksHtml || `<div class="text-center py-16 text-slate-500 font-extrabold text-xl font-display">NO DECKS FOUND. IMPORT ONE ABOVE!</div>`}</div>
         </div>
       `;
     }
@@ -496,6 +619,7 @@
     function startStudy(title, deckIdsStr) {
       const deckIds = new Set(deckIdsStr.split(','));
       state.studyTarget = title;
+      // Filter out suspended cards like native Anki
       state.studyCards = state.cards.filter(c => deckIds.has(c.did) && !c.suspended);
       state.studyIndex = 0;
       state.showAnswer = false;
@@ -540,11 +664,11 @@
 
       if (!currentCard) {
         return `
-          <div class="flex flex-col items-center justify-center h-full p-8 text-center space-y-4">
-            <span class="text-6xl">🎉</span>
-            <h2 class="text-2xl font-bold text-slate-100">Session Complete!</h2>
-            <button onclick="switchView('decks')" class="px-6 py-3 bg-sky-600 text-white rounded-2xl text-base font-bold shadow-lg active:scale-95 transition">
-              Return to Decks
+          <div class="flex flex-col items-center justify-center h-full p-8 text-center space-y-6">
+            <span class="text-7xl animate-bounce">🔥</span>
+            <h2 class="text-4xl font-black font-display text-sky-400">DECK CLEARED! YOU'RE UNSTOPPABLE</h2>
+            <button onclick="switchView('decks')" class="px-8 py-4 bg-sky-500 text-slate-950 rounded-2xl text-xl font-black font-display shadow-2xl active:scale-95 transition">
+              BACK TO DECKS
             </button>
           </div>
         `;
@@ -554,39 +678,39 @@
       const extraFields = (currentCard.fields || []).slice(2).filter(f => f && f.trim() !== "");
 
       return `
-        <div class="max-w-4xl mx-auto h-full flex flex-col p-4 md:p-6 justify-between">
-          <div class="flex items-center justify-between text-sm text-slate-400 mb-3 font-mono">
-            <button onclick="switchView('decks')" class="px-3 py-1.5 bg-white/5 rounded-lg text-xs font-bold">← Back</button>
-            <span>${state.studyTarget} (${state.studyIndex + 1} / ${state.studyCards.length})</span>
+        <div class="max-w-5xl mx-auto h-full flex flex-col p-6 md:p-8 justify-between">
+          <div class="flex items-center justify-between text-base font-extrabold text-slate-400 mb-4 font-mono">
+            <button onclick="switchView('decks')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-black text-slate-200">← EXIT</button>
+            <span class="text-sky-400 bg-sky-950/60 border border-sky-500/30 px-4 py-1.5 rounded-full">${state.studyTarget} (${state.studyIndex + 1} / ${state.studyCards.length})</span>
           </div>
 
-          <div onclick="if (!state.showAnswer) { state.showAnswer = true; render(); }" class="flex-1 panel-card rounded-3xl p-6 md:p-8 flex flex-col justify-between overflow-y-auto mb-4 shadow-2xl">
-            <div class="space-y-6">
+          <div onclick="if (!state.showAnswer) { state.showAnswer = true; render(); }" class="flex-1 panel-card rounded-3xl p-8 md:p-12 flex flex-col justify-between overflow-y-auto mb-6 shadow-2xl border-2 border-white/10 cursor-pointer">
+            <div class="space-y-8">
               <!-- Front Field -->
-              <div class="card-content text-slate-100 text-xl md:text-2xl leading-relaxed font-normal text-center">
+              <div class="card-content text-slate-100 text-2xl md:text-3xl leading-relaxed font-bold text-center">
                 ${renderCardField(currentCard.fields?.[0], true, currentCard.ord)}
               </div>
 
               <!-- Answer Field -->
               ${state.showAnswer ? `
-                <hr class="w-full border-white/10 my-4" />
-                <div class="card-content text-slate-200 text-lg md:text-xl leading-relaxed text-center">
+                <hr class="w-full border-white/15 my-6" />
+                <div class="card-content text-slate-200 text-xl md:text-2xl leading-relaxed font-semibold text-center">
                   ${renderCardField(currentCard.fields?.[1] || currentCard.fields?.[0], false, currentCard.ord)}
                 </div>
               ` : ''}
 
               <!-- Additional Info Panel -->
               ${state.showAnswer && extraFields.length > 0 ? `
-                <div class="mt-6 pt-4 border-t border-white/10">
-                  <button onclick="event.stopPropagation(); state.showExtraInfo = !state.showExtraInfo; render();" class="w-full py-2 px-4 bg-white/5 hover:bg-white/10 text-sky-400 rounded-xl text-xs font-bold flex items-center justify-between transition">
-                    <span>💡 Additional Info (${extraFields.length} field${extraFields.length > 1 ? 's' : ''})</span>
-                    <span>${state.showExtraInfo ? '▲ Hide' : '▼ Expand'}</span>
+                <div class="mt-8 pt-6 border-t border-white/10">
+                  <button onclick="event.stopPropagation(); state.showExtraInfo = !state.showExtraInfo; render();" class="w-full py-3 px-5 bg-white/5 hover:bg-white/10 text-sky-400 rounded-2xl text-sm font-extrabold flex items-center justify-between transition border border-white/10">
+                    <span class="font-display tracking-wider">💡 EXTRA INSIGHTS (${extraFields.length})</span>
+                    <span>${state.showExtraInfo ? '▲ HIDE' : '▼ VIEW'}</span>
                   </button>
                   ${state.showExtraInfo ? `
-                    <div class="mt-3 p-4 bg-slate-950/80 rounded-2xl border border-white/10 space-y-4 text-sm text-slate-300 card-content">
+                    <div class="mt-4 p-6 bg-slate-950/90 rounded-2xl border border-white/10 space-y-6 text-base text-slate-300 card-content">
                       ${extraFields.map((fieldHtml, idx) => `
                         <div>
-                          <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 block mb-1">Extra Field ${idx + 1}</span>${renderCardField(fieldHtml, false, currentCard.ord)}
+                          <span class="text-xs font-mono uppercase tracking-widest text-fuchsia-400 block mb-2 font-bold">FIELD ${idx + 1}</span>${renderCardField(fieldHtml, false, currentCard.ord)}
                         </div>
                       `).join('')}
                     </div>
@@ -596,43 +720,61 @@
             </div>
 
             <!-- Tags Section -->
-            <div class="mt-6 pt-3 border-t border-white/5 flex flex-wrap gap-1.5 justify-center items-center">
+            <div class="mt-8 pt-4 border-t border-white/10 flex flex-wrap gap-2 justify-center items-center">
               ${(currentCard.tags && currentCard.tags.length > 0) ? 
                 currentCard.tags.map(tag => {
                   const leafName = tag.split("::").pop();
-                  return `<span title="${tag}" class="text-[11px] font-mono bg-sky-950/70 border border-sky-500/30 text-sky-300 px-2.5 py-1 rounded-lg">#${leafName}</span>`;
-                }).join('') : '<span class="text-xs text-slate-600 font-mono">No tags</span>'}
+                  return `<span title="${tag}" class="text-xs font-mono bg-sky-950/90 border border-sky-400/40 text-sky-300 px-3.5 py-1.5 rounded-xl font-bold">#${leafName}</span>`;
+                }).join('') : '<span class="text-xs text-slate-500 font-mono">No tags</span>'}
             </div>
           </div>
 
           <div class="pb-2">
             ${!state.showAnswer ? `
-              <button onclick="state.showAnswer = true; render();" class="w-full py-5 bg-sky-600 hover:bg-sky-500 active:scale-[0.98] text-white font-bold text-xl rounded-2xl shadow-xl transition">
-                Show Answer
+              <button onclick="state.showAnswer = true; render();" class="w-full py-6 bg-sky-500 hover:bg-sky-400 active:scale-[0.98] text-slate-950 font-black font-display text-2xl rounded-3xl shadow-[0_0_30px_rgba(56,189,248,0.4)] transition">
+                SHOW ANSWER
               </button>
             ` : `
-              <div class="grid grid-cols-4 gap-3">
-                <button onclick="processRating(1)" class="py-4 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-200 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition">
-                  <span class="text-xs opacity-75 font-mono">${ivls.again.label}</span>
-                  <span class="text-lg font-bold">Again</span>
+              <div class="grid grid-cols-4 gap-4">
+                <button onclick="processRating(1)" class="py-5 bg-rose-950/90 hover:bg-rose-900 border-2 border-rose-500/60 text-rose-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.again.label}</span>
+                  <span class="text-xl font-black font-display">AGAIN</span>
                 </button>
-                <button onclick="processRating(2)" class="py-4 bg-amber-950/80 hover:bg-amber-900 border border-amber-500/50 text-amber-200 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition">
-                  <span class="text-xs opacity-75 font-mono">${ivls.hard.label}</span>
-                  <span class="text-lg font-bold">Hard</span>
+                <button onclick="processRating(2)" class="py-5 bg-amber-950/90 hover:bg-amber-900 border-2 border-amber-500/60 text-amber-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.hard.label}</span>
+                  <span class="text-xl font-black font-display">HARD</span>
                 </button>
-                <button onclick="processRating(3)" class="py-4 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-200 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition">
-                  <span class="text-xs opacity-75 font-mono">${ivls.good.label}</span>
-                  <span class="text-lg font-bold">Good</span>
+                <button onclick="processRating(3)" class="py-5 bg-lime-950/90 hover:bg-lime-900 border-2 border-lime-500/60 text-lime-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.good.label}</span>
+                  <span class="text-xl font-black font-display">GOOD</span>
                 </button>
-                <button onclick="processRating(4)" class="py-4 bg-sky-950/80 hover:bg-sky-900 border border-sky-500/50 text-sky-200 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition">
-                  <span class="text-xs opacity-75 font-mono">${ivls.easy.label}</span>
-                  <span class="text-lg font-bold">Easy</span>
+                <button onclick="processRating(4)" class="py-5 bg-sky-950/90 hover:bg-sky-900 border-2 border-sky-500/60 text-sky-200 rounded-3xl flex flex-col items-center justify-center active:scale-95 transition pop-badge">
+                  <span class="text-xs opacity-75 font-mono font-bold">${ivls.easy.label}</span>
+                  <span class="text-xl font-black font-display">EASY</span>
                 </button>
               </div>
             `}
           </div>
         </div>
       `;
+    }
+
+    function toggleSelectAllCards(filteredCards, checked) {
+      if (checked) {
+        filteredCards.forEach(c => state.selectedCardIds.add(c.id));
+      } else {
+        state.selectedCardIds.clear();
+      }
+      render();
+    }
+
+    function toggleSelectCard(cardId) {
+      if (state.selectedCardIds.has(cardId)) {
+        state.selectedCardIds.delete(cardId);
+      } else {
+        state.selectedCardIds.add(cardId);
+      }
+      render();
     }
 
     function renderBrowserView() {
@@ -645,61 +787,85 @@
         return matchesQuery && matchesTag;
       });
 
+      const allSelected = filtered.length > 0 && filtered.every(c => state.selectedCardIds.has(c.id));
+
       return `
-        <div class="flex h-full max-w-7xl mx-auto p-4 gap-4 overflow-hidden">
+        <div class="flex h-full max-w-7xl mx-auto p-6 gap-6 overflow-hidden">
           <!-- Tag Hierarchy Sidebar -->
-          <div class="w-64 bg-slate-900 border border-white/10 rounded-2xl p-3 flex flex-col h-full flex-shrink-0">
-            <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">🏷️️ Tag Hierarchy</span>
+          <div class="w-80 bg-slate-900/90 border-2 border-white/10 rounded-3xl p-4 flex flex-col h-full flex-shrink-0 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b-2 border-white/10">
+              <span class="text-xs font-black uppercase tracking-widest text-fuchsia-400 font-mono">🏷️ TAG HIERARCHY</span>
               ${state.selectedTagPrefix ? `
-                <button onclick="state.selectedTagPrefix = ''; render();" class="text-[10px] text-rose-400 hover:underline">Clear</button>
+                <button onclick="state.selectedTagPrefix = ''; render();" class="text-xs text-rose-400 font-bold hover:underline">RESET</button>
               ` : ''}
             </div>
+            
             <div class="flex-1 overflow-y-auto space-y-1 pr-1">
               ${Object.keys(tagTree).length > 0 ? 
                 Object.values(tagTree).map(node => renderTagTreeNode(node)).join('') : 
-                '<div class="text-xs text-slate-600 p-2">No tags available</div>'}
+                '<div class="text-sm text-slate-500 p-4 font-bold">No tags indexed</div>'}
             </div>
           </div>
 
           <!-- Main Table Area -->
-          <div class="flex-1 flex flex-col h-full gap-3 min-w-0">
-            <div class="bg-slate-900 p-3 rounded-2xl border border-white/10 flex items-center justify-between gap-3">
-              <input type="text" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" placeholder="Search cards..." class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none" />
+          <div class="flex-1 flex flex-col h-full gap-4 min-w-0">
+            <!-- Search & Batch Operations Toolbar -->
+            <div class="bg-slate-900/90 p-4 rounded-3xl border-2 border-white/10 flex flex-wrap items-center justify-between gap-4 shadow-2xl">
+              <input type="text" value="${state.searchQuery}" oninput="state.searchQuery = this.value; render();" placeholder="Search cards..." class="flex-1 min-w-[200px] bg-slate-950 border-2 border-white/15 rounded-2xl px-5 py-3 text-base text-slate-100 font-semibold placeholder-slate-500 focus:outline-none focus:border-sky-400" />
+              
+              <!-- Anki Batch Actions for Selection -->
+              ${state.selectedCardIds.size > 0 ? `
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-mono font-bold text-sky-400 bg-sky-950 px-3 py-2 rounded-xl border border-sky-500/30">${state.selectedCardIds.size} SELECTED</span>
+                  <button onclick="toggleSelectedCardsSuspension(true)" class="px-3 py-2 bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/40 rounded-xl text-xs font-black font-display">SUSPEND</button>
+                  <button onclick="toggleSelectedCardsSuspension(false)" class="px-3 py-2 bg-lime-500/20 text-lime-300 border border-lime-500/40 hover:bg-lime-500/40 rounded-xl text-xs font-black font-display">UNSUSPEND</button>
+                </div>
+              ` : ''}
+
               ${state.selectedTagPrefix ? `
-                <div class="text-xs font-mono bg-sky-950 border border-sky-500/40 text-sky-300 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                <div class="text-xs font-mono bg-sky-950 border border-sky-400 text-sky-300 px-3 py-2 rounded-xl flex items-center gap-2">
                   <span>#${state.selectedTagPrefix}</span>
                   <button onclick="state.selectedTagPrefix = ''; render();" class="hover:text-white font-bold">✕</button>
                 </div>
               ` : ''}
             </div>
 
-            <div class="bg-slate-900 border border-white/10 rounded-2xl overflow-y-auto flex-1">
-              <table class="w-full text-left text-sm border-collapse">
-                <thead class="bg-slate-950 text-slate-400 sticky top-0 border-b border-white/10 font-mono text-xs uppercase">
+            <div class="bg-slate-900/90 border-2 border-white/10 rounded-3xl overflow-y-auto flex-1 shadow-2xl">
+              <table class="w-full text-left text-base border-collapse">
+                <thead class="bg-slate-950 text-slate-400 sticky top-0 border-b-2 border-white/10 font-mono text-xs uppercase font-extrabold z-10">
                   <tr>
-                    <th class="p-3">Front</th>
-                    <th class="p-3">Back</th>
-                    <th class="p-3">Tags</th>
-                    <th class="p-3">Extra Fields</th>
-                    <th class="p-3">Interval</th>
+                    <th class="p-4 w-12 text-center">
+                      <input type="checkbox" ${allSelected ? 'checked' : ''} onchange="toggleSelectAllCards(filtered, this.checked)" class="w-5 h-5 rounded border-white/20 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer" />
+                    </th>
+                    <th class="p-4">Status</th>
+                    <th class="p-4">Front</th>
+                    <th class="p-4">Back</th>
+                    <th class="p-4">Tags</th>
+                    <th class="p-4">Interval</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-white/5">
+                <tbody class="divide-y divide-white/5 font-medium">
                   ${filtered.slice(0, 100).map(c => {
-                    const extraCount = Math.max(0, (c.fields || []).length - 2);
+                    const isSelected = state.selectedCardIds.has(c.id);
                     return `
-                      <tr class="hover:bg-white/[0.03]">
-                        <td class="p-3 max-w-[200px] truncate">${c.fields?.[0] || ""}</td>
-                        <td class="p-3 max-w-[200px] truncate">${c.fields?.[1] || ""}</td>
-                        <td class="p-3 max-w-[150px] truncate">
+                      <tr class="hover:bg-white/[0.04] transition ${c.suspended ? 'bg-amber-950/20 text-amber-200/70' : ''} ${isSelected ? 'bg-sky-950/40' : ''}">
+                        <td class="p-4 text-center">
+                          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelectCard('${c.id}')" class="w-5 h-5 rounded border-white/20 bg-slate-800 text-sky-500 focus:ring-0 cursor-pointer" />
+                        </td>
+                        <td class="p-4">
+                          <button onclick="toggleSingleCardSuspend('${c.id}')" class="px-2.5 py-1 text-xs font-mono font-bold rounded-lg ${c.suspended ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-lime-500/20 text-lime-300 border border-lime-500/40'}">
+                            ${c.suspended ? '⏸️ SUSPENDED' : '✅ ACTIVE'}
+                          </button>
+                        </td>
+                        <td class="p-4 max-w-[220px] truncate font-bold text-slate-100">${c.fields?.[0] || ""}</td>
+                        <td class="p-4 max-w-[220px] truncate text-slate-300">${c.fields?.[1] || ""}</td>
+                        <td class="p-4 max-w-[180px] truncate">
                           ${(c.tags && c.tags.length > 0) ? c.tags.map(t => {
                             const leaf = t.split("::").pop();
-                            return `<span title="${t}" class="inline-block text-[10px] font-mono bg-sky-950 border border-sky-500/30 text-sky-300 px-1.5 py-0.5 rounded mr-1">#${leaf}</span>`;
+                            return `<span title="${t}" class="inline-block text-[11px] font-mono bg-sky-950 border border-sky-400/30 text-sky-300 px-2 py-0.5 rounded-lg mr-1 font-bold">#${leaf}</span>`;
                           }).join('') : '<span class="text-slate-600">-</span>'}
                         </td>
-                        <td class="p-3 font-mono text-xs text-slate-400">${extraCount > 0 ? `${extraCount} extra` : '-'}</td>
-                        <td class="p-3 font-mono text-xs">${c.interval || 0}d</td>
+                        <td class="p-4 font-mono text-xs font-bold">${c.interval || 0}d</td>
                       </tr>
                     `;
                   }).join('')}
